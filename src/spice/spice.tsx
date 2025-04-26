@@ -10,7 +10,12 @@
  * - Search for and add specific spices using fuzzy search
  */
 import { useEffect, useRef, useState } from 'react';
-import spices, { Spice } from './data/spices';
+
+// Spice interface for parsed data
+interface Spice {
+  name: string;
+  category: string; // First letter
+}
 
 // Interface for letter counts object
 interface LetterCounts {
@@ -45,6 +50,10 @@ const SpiceJarOrganizer = () => {
   const [showResults, setShowResults] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
 
+  // Spice list state (loaded from markdown)
+  const [spices, setSpices] = useState<Spice[]>([]);
+  const [loadingSpices, setLoadingSpices] = useState(true);
+
   /**
    * Initialize the letter counts to zero on component mount
    */
@@ -73,10 +82,42 @@ const SpiceJarOrganizer = () => {
   }, []);
 
   /**
+   * Fetch and parse spicelist.md on mount
+   */
+  useEffect(() => {
+    async function fetchSpices() {
+      setLoadingSpices(true);
+      try {
+        // Vite serves public/ as root, so /spice/spicelist.md
+        const res = await fetch('/src/spice/spicelist.md');
+        const text = await res.text();
+        // Parse the markdown into Spice[]
+        const lines = text.split(/\r?\n/);
+        let currentCategory = '';
+        const parsed: Spice[] = [];
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+          if (/^[A-Z]$/.test(trimmed)) {
+            currentCategory = trimmed;
+          } else {
+            parsed.push({ name: trimmed, category: currentCategory });
+          }
+        }
+        setSpices(parsed);
+      } catch (e) {
+        setSpices([]);
+      }
+      setLoadingSpices(false);
+    }
+    fetchSpices();
+  }, []);
+
+  /**
    * Perform fuzzy search on spices based on the input term
    */
   useEffect(() => {
-    if (searchTerm.trim() === '') {
+    if (searchTerm.trim() === '' || loadingSpices) {
       setSearchResults([]);
       return;
     }
@@ -88,7 +129,7 @@ const SpiceJarOrganizer = () => {
     ).slice(0, 10); // Limit to 10 results
 
     setSearchResults(results);
-  }, [searchTerm]);
+  }, [searchTerm, spices, loadingSpices]);
 
   /**
    * Add a spice to the inventory and update letter counts
@@ -215,7 +256,7 @@ const SpiceJarOrganizer = () => {
     }
     // Reconstruct partition
     const ans: number[][] = [];
-    let nItems = n;
+    const nItems = n;
     let kShelves = k;
     let idx = n - 1;
     while (kShelves > 1) {
@@ -278,6 +319,10 @@ const SpiceJarOrganizer = () => {
   };
   
   const itemsPerShelf = calculateItemsPerShelf();
+
+  if (loadingSpices) {
+    return <div className="p-8 text-center text-lg">Loading spices...</div>;
+  }
 
   return (
     <div className="flex flex-col p-4 max-w-3xl mx-auto bg-gray-50 rounded-lg shadow">
