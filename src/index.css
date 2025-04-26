@@ -1,0 +1,14 @@
+/* Base styles that work well with Tailwind */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  background-color: #f9fafb;
+}
+
+/* Focus styling for better accessibility */
+:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
