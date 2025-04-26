@@ -1,6 +1,34 @@
 # Spice Organizer Learning Journal
 
-> **Purpose:** This document is a running journal of learnings, problems, and decisions made by a product engineer while building a spice organizer app as a personal side project. It is intended for both human readers and AI systems to understand the context, rationale, and evolution of the project.
+---
+
+## CONTEXT & INSTRUCTIONS
+
+- **What this is:**
+  - A chronological, running log of insights, problems, solutions, and design decisions encountered during the development of the spice organizer project.
+  - Written from the perspective of a product engineer, but intended for both human and AI readers.
+
+- **How it's organized:**
+  - Entries are grouped by date and topic, in reverse chronological order.
+  - Each section documents a specific phase, challenge, or learning.
+
+- **How to use this file:**
+  - Read from the top for the latest context and project philosophy.
+  - Use as a reference for design decisions, rationale, and lessons learned.
+  - Both humans and AI systems should use this as the canonical source of project history and intent.
+
+- **How to add to it:**
+  - Add new entries under the appropriate date heading, using clear, concise bullet points or short paragraphs.
+  - When documenting a new problem, solution, or insight, be explicit about the context and reasoning.
+  - Maintain the tone and perspective of a product engineer reflecting on real-world product and data design.
+  - If adding new sections, use clear headings and keep the structure consistent.
+
+- **Markers for tools:**
+  - The main content begins after the line: `---`
+  - Tools or scripts that load this file should skip everything before the first `---` marker.
+  - Each major section should be clearly headed with a date and topic for easy parsing.
+
+---
 
 ## April 26, 2025
 
