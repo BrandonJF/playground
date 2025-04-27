@@ -41,7 +41,6 @@ Amaretto Flavoring
 Annatto
 Anise
 Arrowroot Powder
-Assam Tea
 
 B
 Baharat
@@ -50,29 +49,21 @@ Bay Leaves
 BBQ Seasoning
 Berbere
 Bouquet Garni
+Brown Sugar
 
 C
+Cajun Seasoning
 Caraway
 Cardamom
 Cayenne Pepper
 Celery Powder
 Celery Salt
 Celery Seed
-Chai Tea
-Chamomile Tea
 Chervil
-Chile, Ancho
-Chile, Guajillo
-Chile, Pasilla
-Chile, Wiri Wiri
-Chili, Bird's Eye
-Chili, Habanero
-Chili, Jalapeno
-Chili, Scorpion
-Chili, Thai
 Chili Crisp
+Chili Flakes
 Chimichurri
-Chive
+Chives
 Cilantro
 Cinnamon
 Cloves
@@ -80,8 +71,6 @@ Cocoa Nibs
 Coconut
 Coriander
 Cream of Tartar
-Crisp, Chili
-Crushed Red Pepper
 Cumin
 Curry Powder
 
@@ -91,30 +80,31 @@ Dukkah
 
 E
 Everything Bagel Seasoning
-Extract, Almond
-Extract, Lemon
-Extract, Strawberry
-Extract, Vanilla
+Espresso Salt
+Lemon Extract
+Strawberry Extract
+Vanilla Extract
 
 F
 Fajita Seasoning
 Fennel
 Fenugreek
 Five Spice Powder
-French Mustard & Herb Blend
+French Mustard and Herb Blend
 Furikake
 
 G
 Galangal
 Garlic
-Garlic, Black
+Black Garlic
 Ginger
-Gochugaru (Korean Chili Flakes)
+Gochugaru
 Gochujang Powder
-Green Tea
+Greek Seasoning
 Gumbo File
 
 H
+Habanero
 Harissa
 Hawaij
 Herbes de Provence
@@ -128,12 +118,12 @@ Italian Herb Seasoning
 
 J
 Jamaican Jerk
-Jasmine Tea
+Jalapeno
 Juniper Berries
 
 K
 Kabsa Spice Mix
-Krazy Mixed-Up Salt (Herb Salt)
+Krazy Mixed-Up Salt
 
 L
 Lavender
@@ -141,23 +131,24 @@ Lemon Myrtle
 Lemongrass
 Lime Powder
 Lime Salt
-Lion's Mane Mushrooms
+Lion’s Mane Mushrooms
 Long Pepper
 
 M
 Mace
 Maple Sugar
 Marjoram
-Masala, Garam
-Masala, Tandoori Spice
-Masala, Vadouvan
-Masala, Vindaloo Curry
+Garam Masala
+Tandoori Masala
+Vadouvan Masala
+Vindaloo Curry Masala
 Mediterranean Spice Blend
 Miso Powder
 Molasses
+Montreal Steak Seasoning
 Morel Mushrooms
 Mulling Spices
-MSG (Monosodium Glutamate)
+MSG
 Mustard
 
 N
@@ -166,6 +157,7 @@ Nutmeg
 Nutritional Yeast
 
 O
+Old Bay Seasoning
 Oregano
 Onion Flakes
 Onion Powder
@@ -176,24 +168,23 @@ P
 Paprika
 Panch Phoron
 Parsley
-Pepper, Black
-Pepper, Cayenne
-Pepper, Lemon
-Pepper, Szechuan
-Pepper, White
-Peppercorns, Mixed
-Peppercorns, Pink
-Peppermint
 Peri Peri
+Peppermint
 Pickling Spice
 Pizza Seasoning
 Poppy Seeds
 Porcini Mushrooms
 Poultry Seasoning
 Pumpkin Pie Spice
+Pink Peppercorns
+Mixed Peppercorns
+Szechuan Pepper
+White Pepper
+Black Pepper
+Lemon Pepper
 
 Q
-Quatre épices
+Quatre Épices
 
 R
 Ranch Seasoning
@@ -206,16 +197,6 @@ S
 Saffron
 Sage
 Salsa Verde Seasoning
-Salt, Celery
-Salt, Espresso
-Salt, Herb
-Salt, Himalayan Pink
-Salt, Onion
-Salt, Sea
-Salt, Seasoning
-Salt, Smoked
-Salt Substitute
-Sazon
 Savory
 Scorpion Pepper
 Sesame Seeds
@@ -225,24 +206,24 @@ Shiitake Mushrooms
 Spearmint
 Star Anise
 Steak Seasoning
-Strawberry Extract
 Sugar
-Sugar, Brown
-Sugar, Maple
-Sugar, Turbinado
 Sumac
+
+Salts
+Salt (Celery)
+Salt (Espresso)
+Salt (Herb)
+Salt (Himalayan Pink)
+Salt (Onion)
+Salt (Sea)
+Salt (Smoked)
+Salt Substitute
 
 T
 Taco Seasoning
 Tajín
 Tamarind
 Tarragon
-Tea, Assam
-Tea, Chai
-Tea, Earl Grey
-Tea, Green
-Tea, Jasmine
-Tea, Wild Berry
 Thyme
 Turmeric
 
@@ -257,4 +238,4 @@ Wasabi
 Worcestershire Powder
 
 Z
-Zaatar
+Za'atar

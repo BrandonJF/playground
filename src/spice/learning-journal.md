@@ -100,3 +100,42 @@
 - The localStorage API provides a straightforward way to add persistence without server infrastructure.
 - When working with ranges in UI, treating edge cases (like single-item ranges) improves clarity.
 - Breaking components into logical sections with consistent visual styling helps users navigate complex interfaces.
+
+## April 27, 2025
+
+### Keyboard Shortcut Implementation
+- Added numerical keyboard shortcuts (1-9) to quickly add spices from search results without using the mouse.
+- Applied blue numbered buttons to visually indicate which number key corresponds to each result.
+- Used minimum width for buttons to ensure consistency and visual clarity across the interface.
+- Improved adding workflow by allowing the user to keep one hand on the keyboard when handling physical spices with the other hand.
+- Learned that small UX improvements like keyboard shortcuts can dramatically enhance efficiency for repetitive tasks.
+
+### Enhanced Fuzzy Search Algorithm
+- Implemented a sophisticated fuzzy search algorithm to better match search queries with available spices.
+- Added support for character-skipping matches (e.g., "gngr" matching "ginger"), making it easier to find spices with minimal typing.
+- Incorporated multi-term search support to match spices containing multiple words, regardless of order.
+- Created a smart scoring system that prioritizes:
+  - Exact matches
+  - Matches at the beginning of words or after commas/spaces
+  - Longer relative matches
+  - Earlier position matches
+- Discovered the importance of flexible pattern matching for physical-world tasks where typing might be difficult or abbreviated.
+
+### Custom Spice Addition Feature
+- Added functionality to add custom spices not found in the predefined database.
+- Implemented a prominent "Add [custom]" option at the top of search results with the keyboard shortcut "0".
+- Used distinct green styling to differentiate custom additions from regular search results.
+- Created a seamless workflow that handles both database matches and custom entries in a unified interface.
+- Realized that real-world inventories often contain unique or specialized items not in standardized lists, making custom addition essential for a complete solution.
+
+### User Experience Optimization
+- Reordered UI components to prioritize the most valuable information (distribution) over details (inventory list).
+- Added visual cues for interactive elements with distinct coloring and hover states.
+- Improved empty states with helpful explanatory text.
+- Maintained consistent patterns for user interactions, such as the keyboard shortcut system.
+- Observed that the application now represents a complete solution for the initial problem statement, balancing:
+  - Discoverability (searching/finding spices)
+  - Efficiency (keyboard shortcuts)
+  - Automation (optimal distribution calculation)
+  - Persistence (automatic saving)
+  - Flexibility (custom spice addition)

@@ -44,11 +44,104 @@ interface SavedData {
   lastUpdated: string;
 }
 
+// Interface for fuzzy search result with score
+interface FuzzySearchResult extends Spice {
+  score: number;
+}
+
 // Local storage key
 const STORAGE_KEY = 'spice-organizer-data';
 
 // Move alphabet outside the component to avoid re-creation on every render
 const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
+// Enhanced fuzzy search function with support for skipped characters
+function fuzzySearch(items: Spice[], query: string): FuzzySearchResult[] {
+  const searchTerms = query.toLowerCase().split(/\s+/).filter(term => term.length > 0);
+  if (searchTerms.length === 0) return [];
+
+  const results = items.map(item => {
+    const nameLower = item.name.toLowerCase();
+    
+    // Initial score is 0
+    let score = 0;
+    let matchesAllTerms = true;
+    
+    // Check each search term
+    for (const term of searchTerms) {
+      // Check for exact substring match first
+      const exactMatch = nameLower.includes(term);
+      
+      // If exact match, add points based on position and match quality
+      if (exactMatch) {
+        const position = nameLower.indexOf(term);
+        
+        // Exact match bonus
+        if (nameLower === term) {
+          score += 100;
+        }
+        
+        // Start of name or after separator bonus
+        if (position === 0 || nameLower[position-1] === ',' || nameLower[position-1] === ' ') {
+          score += 50;
+        }
+        
+        // Length bonus (percentage of name matched)
+        score += (term.length / nameLower.length) * 25;
+        
+        // Position bonus (earlier is better)
+        score += Math.max(0, 25 - position);
+      } 
+      // If no exact match, try fuzzy match (allows skipped characters)
+      else {
+        // Check if all characters in the search term appear in the right order in the name
+        let termIndex = 0;
+        let nameIndex = 0;
+        let fuzzyMatched = false;
+        
+        // Try to match all characters in the search term
+        while (termIndex < term.length && nameIndex < nameLower.length) {
+          if (term[termIndex] === nameLower[nameIndex]) {
+            termIndex++;
+          }
+          nameIndex++;
+          
+          // If we matched all characters in the term
+          if (termIndex === term.length) {
+            fuzzyMatched = true;
+            break;
+          }
+        }
+        
+        if (fuzzyMatched) {
+          // Calculate match quality - closer to 1.0 means fewer skipped characters
+          const matchQuality = term.length / (nameIndex - 0); // How many characters we had to scan
+          
+          // Add score based on match quality
+          score += 20 * matchQuality; // Less score than exact matches, but still counts
+        } else {
+          // This term didn't match at all
+          matchesAllTerms = false;
+          break;
+        }
+      }
+    }
+    
+    if (matchesAllTerms) {
+      return {
+        ...item,
+        score
+      };
+    }
+    
+    return { ...item, score: -1 };
+  });
+  
+  // Filter out non-matches and sort by score (highest first)
+  return results
+    .filter(item => item.score > 0)
+    .sort((a, b) => b.score - a.score);
+}
 
 const SpiceJarOrganizer = () => {
   // State to track the inventory of specific spices
@@ -219,7 +312,7 @@ const SpiceJarOrganizer = () => {
   }, []);
 
   /**
-   * Perform fuzzy search on spices based on the input term
+   * Perform enhanced fuzzy search on spices based on the input term
    */
   useEffect(() => {
     if (searchTerm.trim() === '' || loadingSpices) {
@@ -227,12 +320,11 @@ const SpiceJarOrganizer = () => {
       return;
     }
 
-    const term = searchTerm.toLowerCase();
-    // Simple fuzzy search implementation
-    const results = spices.filter(spice => 
-      spice.name.toLowerCase().includes(term)
-    ).slice(0, 10); // Limit to 10 results
-
+    // Use the enhanced fuzzy search algorithm
+    const results = fuzzySearch(spices, searchTerm)
+      .slice(0, 10) // Limit to 10 results
+      .map(result => ({ name: result.name, category: result.category }));
+      
     setSearchResults(results);
   }, [searchTerm, spices, loadingSpices]);
 
@@ -422,6 +514,46 @@ const SpiceJarOrganizer = () => {
     return <div className="p-8 text-center text-lg">Loading spices...</div>;
   }
 
+  /**
+   * Handle keyboard shortcuts for selecting autocomplete items
+   * @param {KeyboardEvent} event - The keyboard event
+   */
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    // Only process if autocomplete is showing and we have a search term
+    if (!showResults || !searchTerm.trim()) return;
+    
+    // Check if the key pressed is a number between 0-9
+    const keyNum = parseInt(event.key);
+    if (!isNaN(keyNum)) {
+      // Prevent default action (like typing the number)
+      event.preventDefault();
+      
+      // Key "0" - Add custom spice
+      if (keyNum === 0) {
+        // Create custom spice from the search term
+        const customSpice: Spice = {
+          name: searchTerm.trim(),
+          category: searchTerm.trim().charAt(0).toUpperCase(),
+        };
+        addSpice(customSpice);
+        return;
+      }
+      
+      // Keys "1-9" - Add from search results
+      if (keyNum >= 1 && keyNum <= 9) {
+        // Make sure we have a result at this index (0-based, so subtract 1)
+        const index = keyNum - 1;
+        if (index < searchResults.length) {
+          // Add the selected spice
+          addSpice(searchResults[index]);
+        }
+      }
+    } else if (event.key === 'Escape') {
+      // Close the dropdown on Escape
+      setShowResults(false);
+    }
+  };
+
   return (
     <div className="flex flex-col p-4 max-w-3xl mx-auto bg-gray-50 rounded-lg shadow">
       <h2 className="text-2xl font-bold text-center mb-6">Spice Jar Organizer</h2>
@@ -493,31 +625,78 @@ const SpiceJarOrganizer = () => {
                 setShowResults(true);
               }}
               onFocus={() => setShowResults(true)}
+              onKeyDown={handleKeyDown}
               className="p-2 border rounded flex-grow"
             />
           </div>
           
           {/* Autocomplete results dropdown */}
-          {showResults && searchResults.length > 0 && (
+          {showResults && searchTerm && (
             <div className="absolute z-10 w-full mt-1 bg-white border rounded shadow-lg max-h-60 overflow-y-auto">
-              {searchResults.map((spice, idx) => (
-                <div
-                  key={idx}
-                  className="p-2 hover:bg-blue-50 cursor-pointer flex justify-between items-center"
-                  onClick={() => addSpice(spice)}
+              {/* Option to add a custom spice if search term is not empty */}
+              <div
+                className="p-2 bg-green-50 hover:bg-green-100 cursor-pointer flex justify-between items-center border-b"
+                onClick={() => {
+                  // Create custom spice from the search term
+                  const customSpice: Spice = {
+                    name: searchTerm.trim(),
+                    category: searchTerm.trim().charAt(0).toUpperCase(),
+                  };
+                  addSpice(customSpice);
+                }}
+              >
+                <span className="flex items-center">
+                  <span className="inline-block w-5 h-5 bg-green-500 text-white rounded-full text-center mr-2 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                    </svg>
+                  </span>
+                  <span>Add "<strong>{searchTerm.trim()}</strong>"</span>
+                </span>
+                <button 
+                  className="px-3 py-1 bg-green-500 text-white rounded text-xs font-bold min-w-[32px]"
+                  title="Press 0 to add custom spice"
                 >
-                  <span>{spice.name}</span>
-                  <button className="px-2 py-1 bg-blue-500 text-white rounded text-xs">
-                    Add
-                  </button>
+                  0
+                </button>
+              </div>
+              
+              {/* Display search results if any */}
+              {searchResults.length > 0 ? (
+                <>
+                  {searchResults.slice(0, 9).map((spice, idx) => (
+                    <div
+                      key={idx}
+                      className="p-2 hover:bg-blue-50 cursor-pointer flex justify-between items-center"
+                      onClick={() => addSpice(spice)}
+                    >
+                      <span>{spice.name}</span>
+                      <button 
+                        className="px-3 py-1 bg-blue-500 text-white rounded text-xs font-bold min-w-[32px]"
+                        title={`Press ${idx + 1} to add`}
+                      >
+                        {idx + 1}
+                      </button>
+                    </div>
+                  ))}
+                  {searchResults.slice(9).map((spice, idx) => (
+                    <div
+                      key={idx + 9}
+                      className="p-2 hover:bg-blue-50 cursor-pointer flex justify-between items-center"
+                      onClick={() => addSpice(spice)}
+                    >
+                      <span>{spice.name}</span>
+                      <button className="px-2 py-1 bg-blue-500 text-white rounded text-xs">
+                        Add
+                      </button>
+                    </div>
+                  ))}
+                </>
+              ) : (
+                <div className="p-2 text-gray-500 border-t">
+                  No matching spices found in database
                 </div>
-              ))}
-            </div>
-          )}
-          
-          {showResults && searchTerm && searchResults.length === 0 && (
-            <div className="absolute z-10 w-full mt-1 bg-white border rounded shadow-lg p-2 text-gray-500">
-              No spices found
+              )}
             </div>
           )}
         </div>
