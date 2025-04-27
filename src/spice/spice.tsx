@@ -3,11 +3,12 @@
  * 
  * This component helps organize spice jars alphabetically across multiple shelves.
  * It allows users to:
- * - Track the count of jars for each letter of the alphabet
+ * - Track specific spices added to the inventory
  * - Specify the number of shelves available
  * - See an optimal distribution of jars across shelves
  * - Visualize the distribution proportionally
  * - Search for and add specific spices using fuzzy search
+ * - Save data to localStorage automatically
  */
 import { useEffect, useRef, useState } from 'react';
 
@@ -15,6 +16,12 @@ import { useEffect, useRef, useState } from 'react';
 interface Spice {
   name: string;
   category: string; // First letter
+}
+
+// Interface for inventory items - tracks actual spices added
+interface InventoryItem extends Spice {
+  id: string; // Unique identifier
+  addedAt: string; // Timestamp
 }
 
 // Interface for letter counts object
@@ -28,10 +35,25 @@ interface ShelfInfo {
   count: number;
 }
 
+// Interface for saved data in localStorage
+interface SavedData {
+  inventory: InventoryItem[];
+  letterCounts: LetterCounts;
+  numShelves: number;
+  totalJars: number;
+  lastUpdated: string;
+}
+
+// Local storage key
+const STORAGE_KEY = 'spice-organizer-data';
+
 // Move alphabet outside the component to avoid re-creation on every render
 const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
 const SpiceJarOrganizer = () => {
+  // State to track the inventory of specific spices
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  
   // State to track the count of jars for each letter
   const [letterCounts, setLetterCounts] = useState<LetterCounts>({});
   
@@ -53,17 +75,90 @@ const SpiceJarOrganizer = () => {
   // Spice list state (loaded from markdown)
   const [spices, setSpices] = useState<Spice[]>([]);
   const [loadingSpices, setLoadingSpices] = useState(true);
+  
+  // Save status indicator
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
+  const [lastSaved, setLastSaved] = useState<string | null>(null);
 
   /**
-   * Initialize the letter counts to zero on component mount
+   * Load data from localStorage on component mount
    */
   useEffect(() => {
+    // First initialize with zeros
     const initialCounts: LetterCounts = {};
     alphabet.forEach(letter => {
       initialCounts[letter] = 0;
     });
-    setLetterCounts(initialCounts);
+    
+    // Then try to load saved data
+    try {
+      const savedData = localStorage.getItem(STORAGE_KEY);
+      if (savedData) {
+        const parsedData: SavedData = JSON.parse(savedData);
+        setInventory(parsedData.inventory || []);
+        setLetterCounts(parsedData.letterCounts);
+        setNumShelves(parsedData.numShelves);
+        setTotalJars(parsedData.totalJars);
+        setLastSaved(parsedData.lastUpdated);
+        console.log('Loaded data from localStorage:', parsedData);
+      } else {
+        setLetterCounts(initialCounts);
+        setInventory([]);
+      }
+    } catch (error) {
+      console.error('Failed to load data from localStorage:', error);
+      setLetterCounts(initialCounts);
+      setInventory([]);
+    }
   }, []);
+
+  /**
+   * Save data to localStorage whenever inventory, letter counts, shelves, or total jars change
+   */
+  useEffect(() => {
+    // Skip initial render when letter counts object is empty
+    if (Object.keys(letterCounts).length === 0) return;
+    
+    const saveData = async () => {
+      try {
+        setSaveStatus('saving');
+        const now = new Date().toLocaleString();
+        const dataToSave: SavedData = {
+          inventory,
+          letterCounts,
+          numShelves,
+          totalJars,
+          lastUpdated: now
+        };
+        
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+        setLastSaved(now);
+        setSaveStatus('saved');
+      } catch (error) {
+        console.error('Failed to save data to localStorage:', error);
+        setSaveStatus('error');
+      }
+    };
+    
+    // Use a slight delay to batch rapid changes
+    const timeoutId = setTimeout(saveData, 500);
+    return () => clearTimeout(timeoutId);
+  }, [inventory, letterCounts, numShelves, totalJars]);
+
+  /**
+   * Clear all data from localStorage
+   */
+  const clearSavedData = () => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      resetInventory();
+      setNumShelves(3);
+      setLastSaved(null);
+      console.log('Cleared data from localStorage');
+    } catch (error) {
+      console.error('Failed to clear data from localStorage:', error);
+    }
+  };
 
   /**
    * Handle clicks outside the autocomplete results to close the dropdown
@@ -88,16 +183,26 @@ const SpiceJarOrganizer = () => {
     async function fetchSpices() {
       setLoadingSpices(true);
       try {
-        // Vite serves public/ as root, so /spice/spicelist.md
-        const res = await fetch('/src/spice/spicelist.md');
+        const res = await fetch('/spicelist.md');
         const text = await res.text();
-        // Parse the markdown into Spice[]
         const lines = text.split(/\r?\n/);
+        // Find the second '---' marker
+        let dataStart = 0;
+        let dashCount = 0;
+        for (let i = 0; i < lines.length; i++) {
+          if (lines[i].trim() === '---') {
+            dashCount++;
+            if (dashCount === 2) {
+              dataStart = i + 1;
+              break;
+            }
+          }
+        }
         let currentCategory = '';
         const parsed: Spice[] = [];
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed) continue;
+        for (let i = dataStart; i < lines.length; i++) {
+          const trimmed = lines[i].trim();
+          if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('---') || trimmed.startsWith('##')) continue;
           if (/^[A-Z]$/.test(trimmed)) {
             currentCategory = trimmed;
           } else {
@@ -139,11 +244,19 @@ const SpiceJarOrganizer = () => {
     // Extract the first letter from the spice name and ensure it's uppercase
     const firstLetter = spice.name.charAt(0).toUpperCase();
     
-    // Create a direct reference to the updated counts to ensure consistency
+    // Create a unique ID for this inventory item
+    const newItem: InventoryItem = {
+      ...spice,
+      id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+      addedAt: new Date().toLocaleString()
+    };
+    
+    // Add to inventory
+    setInventory(prev => [...prev, newItem]);
+    
+    // Update letter counts
     const updatedCounts = { ...letterCounts };
     updatedCounts[firstLetter] = (updatedCounts[firstLetter] || 0) + 1;
-    
-    // Update letter counts directly
     setLetterCounts(updatedCounts);
     
     // Increment total jar count
@@ -160,59 +273,39 @@ const SpiceJarOrganizer = () => {
   };
 
   /**
-   * Increment the count for a specific letter by one
-   * @param {string} letter - The letter to increment
+   * Remove a specific spice from the inventory
+   * @param {string} id - The ID of the inventory item to remove
    */
-  const incrementLetter = (letter: string) => {
-    // Make sure the letter is uppercase for consistency
-    const upperLetter = letter.toUpperCase();
+  const removeSpice = (id: string) => {
+    // Find the item to remove
+    const itemToRemove = inventory.find(item => item.id === id);
+    if (!itemToRemove) return;
     
-    // Create a direct reference to the updated counts
+    // Extract the first letter and update counts
+    const firstLetter = itemToRemove.name.charAt(0).toUpperCase();
+    
+    // Remove from inventory
+    setInventory(prev => prev.filter(item => item.id !== id));
+    
+    // Update letter counts
     const updatedCounts = { ...letterCounts };
-    updatedCounts[upperLetter] = (updatedCounts[upperLetter] || 0) + 1;
-    
-    // Update letter counts directly
+    updatedCounts[firstLetter] = Math.max(0, (updatedCounts[firstLetter] || 0) - 1);
     setLetterCounts(updatedCounts);
     
-    // Increment total jar count
-    const newTotalCount = totalJars + 1;
+    // Decrement total jar count
+    const newTotalCount = totalJars - 1;
     setTotalJars(newTotalCount);
     
-    // Add debug info to console to match addSpice behavior
-    console.log(`Incremented ${upperLetter}: Count is now ${updatedCounts[upperLetter]}`);
+    console.log(`Removed ${itemToRemove.name} (${firstLetter}): Count is now ${updatedCounts[firstLetter]}`);
     console.log(`Total jars: ${newTotalCount}`);
   };
 
   /**
-   * Decrement the count for a specific letter by one, but not below zero
-   * @param {string} letter - The letter to decrement
+   * Reset the entire inventory and letter counts
    */
-  const decrementLetter = (letter: string) => {
-    // Make sure the letter is uppercase for consistency
-    const upperLetter = letter.toUpperCase();
+  const resetInventory = () => {
+    setInventory([]);
     
-    if (letterCounts[upperLetter] > 0) {
-      // Create a direct reference to the updated counts
-      const updatedCounts = { ...letterCounts };
-      updatedCounts[upperLetter] = updatedCounts[upperLetter] - 1;
-      
-      // Update letter counts directly
-      setLetterCounts(updatedCounts);
-      
-      // Decrement total jar count
-      const newTotalCount = totalJars - 1;
-      setTotalJars(newTotalCount);
-      
-      // Add debug info to console
-      console.log(`Decremented ${upperLetter}: Count is now ${updatedCounts[upperLetter]}`);
-      console.log(`Total jars: ${newTotalCount}`);
-    }
-  };
-
-  /**
-   * Reset all letter counts to zero
-   */
-  const resetCounts = () => {
     const resetCounts: LetterCounts = {};
     alphabet.forEach(letter => {
       resetCounts[letter] = 0;
@@ -312,8 +405,13 @@ const SpiceJarOrganizer = () => {
     return optimalDistribution.map(shelf => {
       // Calculate total jars on this shelf
       const count = shelf.reduce((sum: number, letter: string) => sum + (letterCounts[letter] || 0), 0);
+      
       // Create a range string (e.g., "A-D") for display
-      const range = `${shelf[0]}-${shelf[shelf.length - 1]}`;
+      // If it's just one letter, only show that letter
+      const range = shelf.length === 1 
+        ? shelf[0] 
+        : `${shelf[0]}-${shelf[shelf.length - 1]}`;
+        
       return { range, count };
     });
   };
@@ -328,27 +426,56 @@ const SpiceJarOrganizer = () => {
     <div className="flex flex-col p-4 max-w-3xl mx-auto bg-gray-50 rounded-lg shadow">
       <h2 className="text-2xl font-bold text-center mb-6">Spice Jar Organizer</h2>
       
-      {/* Configuration section for shelves and reset button */}
+      {/* Configuration section for shelves and reset/clear buttons */}
       <div className="mb-6 p-4 bg-white rounded shadow">
-        <label className="block mb-2 font-medium">
-          Number of Shelves:
-          <input
-            type="number"
-            min="1"
-            max="10"
-            value={numShelves}
-            onChange={(e) => setNumShelves(Math.max(1, parseInt(e.target.value) || 1))}
-            className="ml-2 p-1 border rounded"
-          />
-        </label>
-        <div className="flex justify-between items-center">
-          <span className="font-medium">Total Jars: {totalJars}</span>
-          <button 
-            onClick={resetCounts}
-            className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
-          >
-            Reset All
-          </button>
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+          <label className="block font-medium">
+            Number of Shelves:
+            <input
+              type="number"
+              min="1"
+              max="10"
+              value={numShelves}
+              onChange={(e) => setNumShelves(Math.max(1, parseInt(e.target.value) || 1))}
+              className="ml-2 p-1 border rounded"
+            />
+          </label>
+          <div className="flex items-center gap-2">
+            <span className="font-medium">Total Jars: {totalJars}</span>
+            <div className="flex gap-2">
+              <button 
+                onClick={resetInventory}
+                className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600"
+                title="Reset inventory but keep in localStorage"
+              >
+                Reset
+              </button>
+              <button 
+                onClick={clearSavedData}
+                className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+                title="Clear all data including from localStorage"
+              >
+                Clear All
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        {/* Save status indicator */}
+        <div className="mt-2 flex justify-between items-center text-xs text-gray-600">
+          <div className="flex items-center">
+            <span className={`inline-block w-2 h-2 rounded-full mr-1 ${
+              saveStatus === 'saved' ? 'bg-green-500' : 
+              saveStatus === 'saving' ? 'bg-yellow-500' : 'bg-red-500'
+            }`}></span>
+            <span>
+              {saveStatus === 'saved' ? 'All changes saved' : 
+               saveStatus === 'saving' ? 'Saving...' : 'Error saving'}
+            </span>
+          </div>
+          {lastSaved && (
+            <span>Last saved: {lastSaved}</span>
+          )}
         </div>
       </div>
       
@@ -396,28 +523,16 @@ const SpiceJarOrganizer = () => {
         </div>
       </div>
       
-      {/* Interactive alphabet grid for counting jars by letter */}
+      {/* Summary of jar counts by letter */}
       <div className="mb-6 p-4 bg-white rounded shadow">
-        <h3 className="font-medium mb-2">Tap letters to count jars:</h3>
+        <h3 className="font-medium mb-2">Jar Count by Letter:</h3>
         <div className="grid grid-cols-6 sm:grid-cols-9 gap-2">
           {alphabet.map(letter => (
             <div key={letter} className="flex flex-col items-center">
-              <div className="flex space-x-2 mb-1">
-                <button 
-                  onClick={() => decrementLetter(letter)}
-                  className="w-6 h-6 flex items-center justify-center bg-gray-200 text-gray-700 rounded"
-                >
-                  -
-                </button>
-                <button 
-                  onClick={() => incrementLetter(letter)}
-                  className="w-6 h-6 flex items-center justify-center bg-blue-500 text-white rounded"
-                >
-                  +
-                </button>
-              </div>
               <div className="flex flex-col items-center">
-                <span className="font-medium">{letter}</span>
+                <span className={`font-medium ${letterCounts[letter] > 0 ? 'text-blue-600' : 'text-gray-400'}`}>
+                  {letter}
+                </span>
                 <span className="text-sm">{letterCounts[letter] || 0}</span>
               </div>
             </div>
@@ -426,7 +541,7 @@ const SpiceJarOrganizer = () => {
       </div>
       
       {/* Results section showing the calculated optimal distribution */}
-      <div className="p-4 bg-white rounded shadow">
+      <div className="mb-6 p-4 bg-white rounded shadow">
         <h3 className="font-medium mb-2">Optimal Shelf Distribution:</h3>
         {optimalDistribution.length > 0 ? (
           <div className="space-y-2">
@@ -445,14 +560,14 @@ const SpiceJarOrganizer = () => {
           </div>
         ) : (
           <p className="text-gray-500 italic">
-            Enter your jar counts to see the optimal distribution
+            Add spices to your inventory to see the optimal distribution
           </p>
         )}
       </div>
       
       {/* Visual bar chart of the distribution */}
       {optimalDistribution.length > 0 && (
-        <div className="mt-4 p-4 bg-white rounded shadow">
+        <div className="mb-6 p-4 bg-white rounded shadow">
           <h3 className="font-medium mb-2">Distribution Visualization:</h3>
           <div className="h-12 flex rounded overflow-hidden">
             {itemsPerShelf.map((shelf, idx) => {
@@ -478,6 +593,39 @@ const SpiceJarOrganizer = () => {
           </div>
         </div>
       )}
+      
+      {/* Inventory list showing exact spices added - now at the end */}
+      <div className="p-4 bg-white rounded shadow">
+        <h3 className="font-medium mb-2">Current Inventory ({inventory.length} jars):</h3>
+        {inventory.length > 0 ? (
+          <div className="space-y-1 max-h-60 overflow-y-auto">
+            {inventory.map((item) => (
+              <div 
+                key={item.id} 
+                className="flex justify-between items-center p-2 bg-blue-50 rounded hover:bg-blue-100"
+              >
+                <div className="flex items-center">
+                  <span className="text-sm font-medium w-7 text-center bg-blue-200 rounded-full mr-2">
+                    {item.name.charAt(0).toUpperCase()}
+                  </span>
+                  <span>{item.name}</span>
+                </div>
+                <button
+                  onClick={() => removeSpice(item.id)}
+                  className="text-red-500 hover:text-red-700 p-1"
+                  title="Remove from inventory"
+                >
+                  &times;
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-500 italic">
+            Your inventory is empty. Search and add spices above.
+          </p>
+        )}
+      </div>
     </div>
   );
 };

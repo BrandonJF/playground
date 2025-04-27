@@ -64,3 +64,39 @@
 - Realized that some forms (like "Powder") should be treated as a descriptor, not the main identity, so items like "Miso Powder" are filed under "Miso" rather than "Powder".
 - Updated the spice list to reflect these conventions, making it more natural for both digital search and physical organization.
 - As a product engineer (even on a weekend side project), I noted the importance of nuance and context when collaborating with AI on data operations and organization—AI can make accurate inferences, but clear intent and human perspective are crucial for optimal results.
+
+## April 26, 2025 (final update)
+
+### Data Persistence & Public Asset Configuration
+- Encountered a critical issue with our spicelist.md file not loading properly - when fetching from `/spicelist.md`, we were getting back HTML content instead.
+- Realized the issue was that static assets need to be in the public directory for Vite to serve them correctly at the root path.
+- Created a proper `public/` directory and moved the spicelist.md file there to resolve the 404 issue.
+- Updated Vite configuration to include better path aliases and improved developer experience settings.
+- Learned that understanding build tool conventions for static assets is critical for React/Vite applications.
+
+### Implementing Persistent Storage
+- Added complete localStorage functionality to automatically save and restore user data.
+- Implemented a save status indicator showing when data is being saved, saved successfully, or if there was an error.
+- Added a 500ms debounce to prevent excessive storage operations during rapid changes.
+- Created separate UI controls: Reset to clear counters but keep data, and Clear All to remove from localStorage.
+- Added last saved timestamp for better user feedback.
+
+### Inventory Tracking Redesign
+- Completely redesigned the app to track specific spices in the inventory rather than abstract letter counts.
+- Removed the plus/minus buttons in favor of an explicit inventory system that shows exactly what was added.
+- Stored unique identifiers and timestamps for each added spice to support proper removal functionality.
+- Created a scrollable inventory view that clearly shows which spices are in the collection.
+- Reordered the interface components to prioritize distribution information over inventory details.
+
+### UI Refinements
+- Improved the distribution visualization to display single letters properly when a shelf only contains one letter (e.g., "A" instead of "A-A").
+- Created a clearer visual hierarchy with the configuration at top, distribution information in the middle, and detailed inventory at the bottom.
+- Added color-coding for letters with spices (blue) versus empty letters (gray) for better visual scanning.
+- Used consistent UI patterns for interactive elements to improve usability.
+
+### Lessons Learned
+- Static assets like data files should be placed in the public directory for proper serving in Vite applications.
+- For real user value, tracking specific items rather than abstract counters provides much better utility.
+- The localStorage API provides a straightforward way to add persistence without server infrastructure.
+- When working with ranges in UI, treating edge cases (like single-item ranges) improves clarity.
+- Breaking components into logical sections with consistent visual styling helps users navigate complex interfaces.
