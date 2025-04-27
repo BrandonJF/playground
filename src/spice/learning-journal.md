@@ -139,3 +139,39 @@
   - Automation (optimal distribution calculation)
   - Persistence (automatic saving)
   - Flexibility (custom spice addition)
+
+## April 27, 2025 (continued)
+
+### Edge Case Handling for Shelf Distribution
+
+- Fixed a failing test case that expected an empty array when the number of shelves is set to 0.
+- Made a practical design decision to enforce a minimum of 1 shelf, even if a user attempts to set it to 0 or a negative number.
+- Updated the test suite to reflect this requirement by validating that:
+  - The `setNumShelves()` method enforces a minimum of 1 shelf
+  - Calling `getNumShelves()` after setting to 0 correctly returns 1
+  - The distribution calculation methods still return valid results
+- The implementation uses `Math.max(1, num)` to elegantly enforce this minimum without additional code complexity.
+- Realized that edge cases like this highlight the importance of balancing theoretical test cases with practical, real-world application requirements.
+- This approach prevents potential errors in the UI and ensures the application always provides meaningful results to users.
+- Confirmed proper functionality by running the full test suite, verifying all 17 tests now pass successfully.
+
+## April 28, 2025
+
+### Test Suite Implementation & Code Abstraction
+
+- Faced an unexpected issue during in-person inventory organization with a friend - the system had problems that forced us to stop working.
+- Realized that real-world testing with limited time availability can be costly when bugs arise - my friend had to leave before we completed the task.
+- Decided to implement a comprehensive testing suite to validate different scenarios without requiring physical testing:
+  - Created dedicated test files for core business logic
+  - Added unit tests covering all critical functions
+  - Implemented edge case tests (like the minimum shelf requirement)
+  - Ensured test coverage for inventory management, search, and distribution algorithms
+- Abstracted business logic from UI components to make testing easier:
+  - Moved all data manipulation into the dedicated `SpiceLogic` class
+  - Separated concerns between UI rendering and core functionality
+  - Created clear interfaces for data structures
+  - Implemented pure functions for distribution calculations
+- This separation allowed for isolated testing of business logic without UI dependencies.
+- The test suite now serves as living documentation of expected behavior and guards against regression.
+- Gained important insight: thorough testing before real-world application saves significant time and prevents frustrating interruptions, especially when coordinating with other people.
+- Confirmed the value of the abstraction when the test suite immediately caught an edge case (0 shelves) that would have caused problems in a real-world scenario.
