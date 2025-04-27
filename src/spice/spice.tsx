@@ -308,7 +308,7 @@ const SpiceJarOrganizer = () => {
     const spiceLogic = spiceLogicRef.current;
     
     // Add the spice using SpiceLogic
-    const newItem = spiceLogic.addSpice(spice);
+    spiceLogic.addSpice(spice);
     
     // Update component state
     setInventory(spiceLogic.getInventory());
@@ -392,7 +392,7 @@ const SpiceJarOrganizer = () => {
     if (!spiceLogicRef.current) return;
     
     // Get the optimal distribution from SpiceLogic
-    const distribution = spiceLogicRef.current.calculateOptimalDistribution(letterCounts, totalJars, numShelves);
+    const distribution = spiceLogicRef.current.calculateOptimalDistribution();
     setOptimalDistribution(distribution);
   }, [letterCounts, totalJars, numShelves]);
   

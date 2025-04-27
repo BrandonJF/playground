@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "server": "node server.js",
     "dev:server": "nodemon server.js",
-    "start": "concurrently \"pnpm run dev\" \"pnpm run dev:server\""
+    "start": "concurrently \"pnpm run dev\" \"pnpm run dev:server\"",
+    "test": "vitest run"
   },
   "dependencies": {
     "body-parser": "^1.20.3",

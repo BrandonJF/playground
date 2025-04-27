@@ -1,5 +1,5 @@
-import { useState, useEffect, Suspense } from 'react'
-import { loadComponents, loadAdditionalComponents } from './utils/componentLoader'
+import { Suspense, useEffect, useState } from 'react';
+import { loadComponents } from './utils/componentLoader';
 
 function App() {
   const [components, setComponents] = useState<Record<string, any>>({});
@@ -11,16 +11,14 @@ function App() {
   useEffect(() => {
     async function load() {
       try {
-        const [mainComponents, additionalComps] = await Promise.all([
-          loadComponents(),
-          loadAdditionalComponents()
-        ]);
+        const mainComponents = await loadComponents();
         
         setComponents(mainComponents);
-        setAdditionalComponents(additionalComps);
+        // For Docker build, we're not using additional components
+        setAdditionalComponents({});
         
         // Auto-select first component if available
-        const allComponentKeys = [...Object.keys(mainComponents), ...Object.keys(additionalComps)];
+        const allComponentKeys = Object.keys(mainComponents);
         if (allComponentKeys.length > 0 && !selectedComponent) {
           setSelectedComponent(allComponentKeys[0]);
         }
@@ -38,22 +36,22 @@ function App() {
   // This is a fallback for components that might not be discovered
   useEffect(() => {
     // Check if we already have the spice component, if not add it manually
-    if (!additionalComponents['spice/spice'] && !loading) {
+    if (!components['spice'] && !loading) {
       import('./spice/spice').then(module => {
         setAdditionalComponents(prev => ({
           ...prev,
-          'spice/spice': module.default
+          'spice': module.default
         }));
         
         // Auto-select if no component is selected
         if (!selectedComponent) {
-          setSelectedComponent('spice/spice');
+          setSelectedComponent('spice');
         }
       }).catch(error => {
         console.error("Failed to load spice component:", error);
       });
     }
-  }, [additionalComponents, loading, selectedComponent]);
+  }, [components, loading, selectedComponent]);
 
   // Get all component keys for navigation
   const allComponentKeys = [

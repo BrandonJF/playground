@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  # Frontend service
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - server
+    volumes:
+      # Mount the spicelist.md file to make it accessible in the container
+      - ./public/spicelist.md:/usr/share/nginx/html/spicelist.md
+      # Mount the submissions.json file for persistence
+      - ./submissions.json:/app/submissions.json
+
+  # Backend service
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    ports:
+      - "3001:3001"
+    volumes:
+      # Mount the spicelist.md file to allow persistent updates
+      - ./public/spicelist.md:/app/public/spicelist.md
+      # Mount the submissions.json file to persist submissions
+      - ./submissions.json:/app/submissions.json
+    environment:
+      - NODE_ENV=production

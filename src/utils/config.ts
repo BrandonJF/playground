@@ -5,10 +5,10 @@
 
 // Server configuration
 export const API_CONFIG = {
-  // Base URL for API endpoints
+  // Base URL for API endpoints - works in both development and Docker environments
   baseUrl: process.env.NODE_ENV === 'production' 
-    ? '/api' // In production, use relative path
-    : 'http://localhost:3001/api', // In development, use full URL with port
+    ? '/api' // In production/Docker, nginx routes /api to the server
+    : 'http://localhost:3001/api', // In local development
   
   // API endpoints
   endpoints: {

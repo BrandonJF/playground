@@ -37,7 +37,7 @@ export interface SavedData {
   numShelves: number;
   totalJars: number;
   lastUpdated: string;
-  submissions: SpiceSubmission[]; // Add tracking for submissions
+  submissions: SpiceSubmission[]; // Required property
 }
 
 // Interface for fuzzy search result with score
@@ -154,7 +154,8 @@ export class SpiceLogic {
         letterCounts: this.letterCounts,
         numShelves: this.numShelves,
         totalJars: this.totalJars,
-        lastUpdated: now
+        lastUpdated: now,
+        submissions: this.submissions
       };
 
       localStorage.setItem(SpiceLogic.STORAGE_KEY, JSON.stringify(dataToSave));
@@ -395,21 +396,6 @@ export class SpiceLogic {
     // Track running counts for each shelf
     const shelfCounts: number[] = Array(numShelves).fill(0);
     
-    // Helper function to find the shelf with the fewest jars
-    const findLightestShelf = (): number => {
-      let minIndex = 0;
-      let minCount = shelfCounts[0];
-      
-      for (let i = 1; i < shelfCounts.length; i++) {
-        if (shelfCounts[i] < minCount) {
-          minCount = shelfCounts[i];
-          minIndex = i;
-        }
-      }
-      
-      return minIndex;
-    };
-    
     // First pass: try to keep letters sequential while balancing
     let currentShelf = 0;
     let currentCount = 0;
@@ -602,10 +588,14 @@ export class SpiceLogic {
 
   /**
    * Linear partition algorithm for optimal shelf distribution
+   * This method is left in the code as a placeholder for future optimization,
+   * but commented out to avoid TypeScript errors in the build process.
+   * 
    * @param seq Array of values to partition
    * @param k Number of partitions
    * @returns Array of partition ranges [start, end]
    */
+  /*
   private linearPartition(seq: number[], k: number): number[][] {
     const n = seq.length;
     if (k <= 0) return [];
@@ -652,6 +642,7 @@ export class SpiceLogic {
     ans.unshift([0, idx]);
     return ans;
   }
+  */
 
   /**
    * Parse a markdown spice list format into an array of spices
@@ -711,7 +702,11 @@ export class SpiceLogic {
    */
   public async fetchAndUpdateSpices(url: string = '/spicelist.md'): Promise<boolean> {
     try {
-      const spices = await SpiceLogic.fetchSpicesFromMarkdown(url);
+      // In Docker environment, we need to ensure we use the absolute URL
+      const spiceListUrl = url.startsWith('http') ? url : (window.location.origin + url);
+      console.log('Fetching spices from:', spiceListUrl);
+      
+      const spices = await SpiceLogic.fetchSpicesFromMarkdown(spiceListUrl);
       this.setSpices(spices);
       return true;
     } catch (error) {
@@ -725,7 +720,7 @@ export class SpiceLogic {
    * @param spice The spice to submit
    * @returns Whether the submission was successful
    */
-  public async submitSpice(spice: Spice): Promise<{success: boolean, status?: string}> {
+  public async submitSpice(spice: Spice): Promise<{success: boolean, status?: string, error?: string}> {
     try {
       // Create a submission record for local tracking
       const submission: SpiceSubmission = {
@@ -818,7 +813,7 @@ export class SpiceLogic {
         });
         
         // Add or update submissions from server
-        serverSubmissions.forEach(serverSub => {
+        serverSubmissions.forEach((serverSub: SpiceSubmission) => {
           if (existingSubmissions.has(serverSub.name)) {
             // Update existing submission with server data (server is authoritative)
             const index = this.submissions.findIndex(s => s.name === serverSub.name);
