@@ -115,6 +115,7 @@ Green Tea
 Gumbo File
 
 H
+Honey
 Harissa
 Hawaij
 Herbes de Provence
@@ -173,6 +174,7 @@ Onion Salt
 Oyster Mushrooms
 
 P
+Pineapple Preserves
 Paprika
 Panch Phoron
 Parsley
@@ -203,6 +205,7 @@ Rosemary
 Rum Flavoring
 
 S
+Sorrel Leaf
 Saffron
 Sage
 Salsa Verde Seasoning

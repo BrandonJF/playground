@@ -9,6 +9,21 @@
  * - Visualize the distribution proportionally
  * - Search for and add specific spices using fuzzy search
  * - Save data to localStorage automatically
+ * 
+ * IMPORTANT: This component should ONLY handle:
+ * - UI rendering
+ * - User interactions
+ * - Component-specific state management
+ * 
+ * All business logic should be delegated to the SpiceLogic class, including:
+ * - Data fetching and parsing
+ * - Data manipulation
+ * - Storage operations
+ * - Validation logic
+ * 
+ * If you need to implement functionality that doesn't directly relate to the UI,
+ * add it to the SpiceLogic class instead of this component to maintain proper
+ * separation of concerns and prevent errors like "fetchSpices is not defined".
  */
 import { useEffect, useRef, useState } from 'react';
 
@@ -141,6 +156,9 @@ const SpiceJarOrganizer = () => {
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
   const [lastSaved, setLastSaved] = useState<string | null>(null);
 
+  // State to track submitted custom spices
+  const [submittedSpices, setSubmittedSpices] = useState<{[key: string]: 'pending' | 'approved' | 'rejected'}>({});
+
   /**
    * Initialize SpiceLogic instance and load data on component mount
    */
@@ -241,47 +259,26 @@ const SpiceJarOrganizer = () => {
    * Fetch and parse spicelist.md on mount
    */
   useEffect(() => {
-    async function fetchSpices() {
+    const loadSpices = async () => {
       setLoadingSpices(true);
+      
+      if (!spiceLogicRef.current) return;
+      
       try {
-        const res = await fetch('/spicelist.md');
-        const text = await res.text();
-        const lines = text.split(/\r?\n/);
-        // Find the second '---' marker
-        let dataStart = 0;
-        let dashCount = 0;
-        for (let i = 0; i < lines.length; i++) {
-          if (lines[i].trim() === '---') {
-            dashCount++;
-            if (dashCount === 2) {
-              dataStart = i + 1;
-              break;
-            }
-          }
-        }
-        let currentCategory = '';
-        const parsed: Spice[] = [];
-        for (let i = dataStart; i < lines.length; i++) {
-          const trimmed = lines[i].trim();
-          if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('---') || trimmed.startsWith('##')) continue;
-          if (/^[A-Z]$/.test(trimmed)) {
-            currentCategory = trimmed;
-          } else {
-            parsed.push({ name: trimmed, category: currentCategory });
-          }
-        }
-        setSpices(parsed);
+        // Use the SpiceLogic class method to fetch and update spices
+        await spiceLogicRef.current.fetchAndUpdateSpices();
         
-        // Update spices in SpiceLogic
-        if (spiceLogicRef.current) {
-          spiceLogicRef.current.setSpices(parsed);
-        }
+        // Get the updated spices from SpiceLogic
+        setSpices(spiceLogicRef.current.getSpices());
       } catch (e) {
+        console.error('Error loading spices:', e);
         setSpices([]);
+      } finally {
+        setLoadingSpices(false);
       }
-      setLoadingSpices(false);
-    }
-    fetchSpices();
+    };
+    
+    loadSpices();
   }, []);
 
   /**
@@ -443,6 +440,101 @@ const SpiceJarOrganizer = () => {
       // Close the dropdown on Escape
       setShowResults(false);
     }
+  };
+
+  /**
+   * Submit a custom spice to be added to the canonical list
+   * @param spice The spice to submit
+   */
+  const submitCustomSpice = async (spice: Spice) => {
+    try {
+      if (!spiceLogicRef.current) return;
+      
+      // First check if the spice already exists in the list using the business logic
+      if (spiceLogicRef.current.spiceExistsInList(spice.name)) {
+        alert(`"${spice.name}" already exists in the spice database.`);
+        return false;
+      }
+      
+      // Update UI state to show pending
+      setSubmittedSpices(prev => ({
+        ...prev,
+        [spice.name]: 'pending'
+      }));
+      
+      // Submit to server through SpiceLogic
+      const result = await spiceLogicRef.current.submitSpice(spice);
+      
+      if (result.success) {
+        if (result.status === 'approved') {
+          // Update UI state to show approved status
+          setSubmittedSpices(prev => ({
+            ...prev,
+            [spice.name]: 'approved'
+          }));
+          
+          // Reload spices to include the newly added one
+          fetchSpices();
+          
+          alert(`Success! "${spice.name}" has been added to the spice database.`);
+        } else if (result.status === 'exists') {
+          // Update UI state
+          setSubmittedSpices(prev => {
+            const newState = {...prev};
+            delete newState[spice.name];
+            return newState;
+          });
+          
+          alert(`"${spice.name}" already exists in the spice database.`);
+        } else {
+          alert(`Thank you for submitting "${spice.name}" to the spice database!`);
+        }
+      } else {
+        // If failed, revert UI state
+        setSubmittedSpices(prev => {
+          const newState = {...prev};
+          delete newState[spice.name];
+          return newState;
+        });
+        
+        // Show a more specific error message if available
+        if (result.error) {
+          alert(`Error: ${result.error}`);
+        } else {
+          alert(`Failed to submit "${spice.name}". Please try again later.`);
+        }
+      }
+      
+      return result.success;
+    } catch (error) {
+      console.error('Failed to submit custom spice:', error);
+      // Revert UI state
+      setSubmittedSpices(prev => {
+        const newState = {...prev};
+        delete newState[spice.name];
+        return newState;
+      });
+      alert(`Error: Failed to submit "${spice.name}". ${error instanceof Error ? error.message : ''}`);
+      return false;
+    }
+  };
+
+  /**
+   * Check if a spice has been submitted already
+   * @param name The name of the spice to check
+   * @returns Whether the spice has been submitted
+   */
+  const hasBeenSubmitted = (name: string): boolean => {
+    return !!submittedSpices[name];
+  };
+
+  /**
+   * Get the submission status for a spice
+   * @param name The name of the spice to check
+   * @returns The submission status or null if not submitted
+   */
+  const getSubmissionStatus = (name: string): 'pending' | 'approved' | 'rejected' | null => {
+    return submittedSpices[name] || null;
   };
 
   return (
@@ -685,14 +777,37 @@ const SpiceJarOrganizer = () => {
                     {item.name.charAt(0).toUpperCase()}
                   </span>
                   <span>{item.name}</span>
+                  
+                  {/* Show submission badge if the spice has been submitted */}
+                  {hasBeenSubmitted(item.name) && (
+                    <span className="ml-2 px-2 py-0.5 text-xs rounded bg-yellow-100 text-yellow-800">
+                      {getSubmissionStatus(item.name) === 'pending' ? 'Pending review' : 
+                       getSubmissionStatus(item.name) === 'approved' ? 'Approved' : 'Rejected'}
+                    </span>
+                  )}
                 </div>
-                <button
-                  onClick={() => removeSpice(item.id)}
-                  className="text-red-500 hover:text-red-700 p-1"
-                  title="Remove from inventory"
-                >
-                  &times;
-                </button>
+                <div className="flex items-center">
+                  {/* Only show submit button for custom spices not in the official list */}
+                  {!spices.some(s => s.name === item.name) && !hasBeenSubmitted(item.name) && (
+                    <button
+                      onClick={() => submitCustomSpice(item)}
+                      className="text-green-500 hover:text-green-700 p-1 mr-2 text-xs flex items-center"
+                      title="Submit to spice database"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
+                      </svg>
+                      Submit
+                    </button>
+                  )}
+                  <button
+                    onClick={() => removeSpice(item.id)}
+                    className="text-red-500 hover:text-red-700 p-1"
+                    title="Remove from inventory"
+                  >
+                    &times;
+                  </button>
+                </div>
               </div>
             ))}
           </div>

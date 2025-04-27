@@ -178,22 +178,25 @@
 
 ## April 27, 2025 (evening update)
 
-### Complete Refactoring to SpiceLogic Class
+### Improved Separation of Concerns
 
-- Finalized the implementation of the SpiceLogic class to fully encapsulate all business logic from the spice.tsx component.
-- Added the critical `calculateOptimalDistribution` method to the SpiceLogic class that was missing but referenced in the component.
-- The implementation uses a three-pass algorithm for distribution:
-  - First pass: Initial distribution of letters to shelves while attempting to keep letters sequential
-  - Second pass: Optimization by moving letters between shelves to achieve better balance
-  - Third pass: Ensuring alphabetical order within each shelf
-- This refactoring provides several benefits:
+- Identified and fixed a critical architectural issue where data fetching logic was embedded directly in a React component's useEffect hook.
+- Refactored the application to properly separate business logic from UI concerns:
+  - Moved the `fetchSpicesFromMarkdown` and `fetchAndUpdateSpices` functions to the SpiceLogic class
+  - Updated the UI component to use these methods instead of implementing its own fetching logic
+  - Added comprehensive documentation to both files to clarify the separation of concerns
+- This architectural improvement addressed a bug where the `fetchSpices` function was undefined when called from other parts of the component.
+- Added clear JSDoc comments to prevent similar issues in the future, documenting that:
+  - SpiceLogic class should contain ALL business logic (data fetching, manipulation, storage, validation)
+  - React components should ONLY handle UI rendering, user interactions, and component-specific state
+- The refactoring has several benefits:
   - Improved testability - business logic can now be tested independently from UI components
-  - Better separation of concerns - UI components now focus only on rendering and user interaction
-  - Enhanced maintainability - changes to business logic don't require modifying UI code
-  - Easier extension - new features can be added to the logic layer without impacting the UI
-- The refactoring represents an important step in the project's architecture evolution, moving from a monolithic component to a proper layered design.
-- This architectural improvement enables more efficient collaboration when multiple people work on the project, as frontend and business logic can be developed independently.
-- Confirmed proper functioning by validating that the UI behaves identically after the refactoring, ensuring no regression in user experience.
+  - Better maintainability - changes to business logic don't require modifying UI code
+  - Enhanced reusability - data fetching logic can now be used from anywhere in the application
+  - Clearer error handling - any issues with data fetching are now handled consistently
+- As a product engineer, I've learned that proper separation of concerns is essential even in smaller applications, as it prevents bugs and makes the code more maintainable as the application grows.
+- This experience highlights that React's component model can inadvertently encourage mixing business logic with UI concerns, especially for developers who are still building familiarity with the framework.
+- The addition of clear documentation serves as both a guide for future development and as a teaching tool for best practices in React architecture.
 
 ## April 27, 2025 (final update)
 
@@ -222,4 +225,40 @@
 - This improvement addresses a subtle but important UX issue: users can type quickly without worrying about proper capitalization, yet the system maintains a polished, consistent presentation.
 - As a product engineer, I've learned that these small refinements to data normalization significantly improve both the visual quality and perceived professionalism of even simple applications.
 - The capitalization logic is an excellent example of moving business rules into the logic layer, further validating our earlier decision to abstract business logic away from UI components.
-- I do wonder the effect of separating out the classes on LLMs. My guess is that we end up saving a fair amount on computation token costs because to reason over the logic doesn't always require processing UI tokens. 
+- I do wonder the effect of separating out the classes on LLMs. My guess is that we end up saving a fair amount on computation token costs because to reason over the logic doesn't always require processing UI tokens.
+
+## April 28, 2025 (morning update)
+
+### Custom Spice Persistence System
+
+- Identified a critical limitation in our current implementation: custom spices added through the interface are only stored in localStorage and don't persist to the canonical spicelist.md.
+- This creates several issues:
+  - Knowledge doesn't accumulate over time as users discover and add new spices
+  - Custom additions are lost when clearing browser data or switching devices
+  - The community benefit of crowd-sourced spice discovery is missed
+- Designed a new persistence system with these components:
+  - A server endpoint to receive and validate new spice submissions
+  - A moderation queue to prevent duplicates and ensure quality
+  - An update mechanism to safely modify the canonical markdown file
+  - Proper categorization to maintain the "head noun first" convention
+- This improvement represents a shift from a single-user tool to a collaborative system that gets better with use.
+- As a product engineer, I've learned that data persistence architecture should consider not just individual user state, but also how to capture and preserve valuable user contributions for collective benefit.
+- The new system balances ease of addition (users can still immediately use custom spices) with data integrity (submissions are validated before being added to the canonical source).
+
+## April 27, 2025 (afternoon update)
+
+### Custom Spice Persistence Improvements
+
+- Implemented a Node.js server backend to allow custom spices to be saved back to the canonical spicelist.md file.
+- Created a submission API that automatically adds custom spices to the appropriate category in the markdown file.
+- Added proper business logic validation in the SpiceLogic class with a `spiceExistsInList` method to prevent duplicate submissions.
+- Fixed a critical UX issue where partial matching was preventing legitimate new spices from being added (e.g., "Honey" was being blocked because "Honey Powder" existed).
+- Updated the UI to provide clear feedback on submission status with intuitive status badges.
+- Moved duplication checking from the server to the business logic layer in SpiceLogic, ensuring consistency across the application.
+- This architecture enhancement represents a significant improvement in the system's ability to:
+  - Preserve user knowledge across sessions and devices
+  - Maintain a single source of truth for spice data
+  - Prevent duplicate entries through proper validation
+  - Provide clear feedback on submission status
+- The implementation strikes a balance between immediate usefulness (custom spices are added to inventory right away) and long-term value (submissions are persisted to the canonical list).
+- As a product engineer, I've learned that persisting user-generated content requires careful consideration of validation rules, file handling, and proper separation of concerns between UI, business logic, and data storage layers.

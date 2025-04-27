@@ -1,3 +1,5 @@
+import { API_CONFIG, getApiUrl } from '../../utils/config';
+
 // Interface definitions for the spice organizer
 export interface Spice {
   name: string;
@@ -21,6 +23,13 @@ export interface ShelfInfo {
   count: number;
 }
 
+// Interface for submission status tracking
+export interface SpiceSubmission {
+  name: string;
+  status: 'pending' | 'approved' | 'rejected';
+  submittedAt: string;
+}
+
 // Interface for saved data in localStorage
 export interface SavedData {
   inventory: InventoryItem[];
@@ -28,6 +37,7 @@ export interface SavedData {
   numShelves: number;
   totalJars: number;
   lastUpdated: string;
+  submissions: SpiceSubmission[]; // Add tracking for submissions
 }
 
 // Interface for fuzzy search result with score
@@ -38,6 +48,20 @@ export interface FuzzySearchResult extends Spice {
 /**
  * SpiceLogic - Core business logic for the spice jar organizer
  * Handles all data manipulation, search, and organization algorithms without UI dependencies
+ * 
+ * IMPORTANT: This class should contain ALL business logic, including:
+ * - Data fetching and parsing
+ * - Data manipulation (adding/removing spices, calculations)
+ * - Storage operations (loading/saving)
+ * - Validation logic
+ * 
+ * The React components should ONLY handle:
+ * - UI rendering
+ * - User interactions
+ * - State management specific to the UI
+ * 
+ * Any operation that could potentially be used outside of a specific UI component
+ * should be implemented here instead of in the component.
  */
 export class SpiceLogic {
   // Constants
@@ -51,6 +75,7 @@ export class SpiceLogic {
   private totalJars: number = 0;
   private spices: Spice[] = [];
   private lastUpdated: string | null = null;
+  private submissions: SpiceSubmission[] = []; // Track submissions
 
   constructor(initialSpices: Spice[] = []) {
     // Initialize letter counts with zeros
@@ -663,5 +688,179 @@ export class SpiceLogic {
     }
 
     return parsed;
+  }
+
+  /**
+   * Fetch spices from the spicelist.md file
+   * @returns Promise resolving to an array of spices
+   */
+  public static async fetchSpicesFromMarkdown(url: string = '/spicelist.md'): Promise<Spice[]> {
+    try {
+      const res = await fetch(url);
+      const text = await res.text();
+      return SpiceLogic.parseSpiceListFromMarkdown(text);
+    } catch (error) {
+      console.error('Error fetching spice list:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Fetch and update the spices list
+   * @returns Promise resolving to whether the operation was successful
+   */
+  public async fetchAndUpdateSpices(url: string = '/spicelist.md'): Promise<boolean> {
+    try {
+      const spices = await SpiceLogic.fetchSpicesFromMarkdown(url);
+      this.setSpices(spices);
+      return true;
+    } catch (error) {
+      console.error('Error fetching and updating spices:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Submit a custom spice to be considered for the canonical list
+   * @param spice The spice to submit
+   * @returns Whether the submission was successful
+   */
+  public async submitSpice(spice: Spice): Promise<{success: boolean, status?: string}> {
+    try {
+      // Create a submission record for local tracking
+      const submission: SpiceSubmission = {
+        name: spice.name,
+        status: 'pending',
+        submittedAt: new Date().toLocaleString()
+      };
+      
+      // Check if this spice has already been submitted locally
+      const existingIndex = this.submissions.findIndex(s => s.name === spice.name);
+      if (existingIndex >= 0) {
+        // Update existing submission if found
+        this.submissions[existingIndex] = submission;
+      } else {
+        // Add new submission
+        this.submissions.push(submission);
+      }
+      
+      // Save to local storage
+      this.saveToStorage();
+      
+      // Send to server API using the centralized config
+      const response = await fetch(getApiUrl(API_CONFIG.endpoints.submitSpice), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: spice.name,
+          category: spice.category
+        }),
+      });
+      
+      // Enhanced error handling - log the actual response for debugging
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Server response (${response.status}): ${errorText}`);
+        throw new Error(`Server returned ${response.status}: ${errorText}`);
+      }
+      
+      // Parse the JSON response
+      const data = await response.json();
+      console.log('Server response:', data);
+      
+      // If the submission was successful and auto-approved
+      if (data.success && data.status === 'approved') {
+        // Update the local submission status to approved
+        const updatedIndex = this.submissions.findIndex(s => s.name === spice.name);
+        if (updatedIndex >= 0) {
+          this.submissions[updatedIndex].status = 'approved';
+          // Save the updated status
+          this.saveToStorage();
+        }
+        
+        return { success: true, status: 'approved' };
+      } else if (data.success && data.status === 'exists') {
+        // Spice already exists in the canonical list
+        return { success: true, status: 'exists' };
+      }
+      
+      return { success: data.success, status: data.status || 'pending' };
+    } catch (error) {
+      console.error('Failed to submit spice:', error);
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  }
+
+  /**
+   * Load submissions from the server API
+   * @returns Promise resolving to whether the operation was successful
+   */
+  public async loadSubmissionsFromServer(): Promise<boolean> {
+    try {
+      const response = await fetch(getApiUrl(API_CONFIG.endpoints.submissions));
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch submissions from server');
+      }
+      
+      const data = await response.json();
+      
+      if (data.success && Array.isArray(data.data)) {
+        // Merge server submissions with local submissions
+        const serverSubmissions = data.data;
+        
+        // Create a map of existing submissions by name for quick lookup
+        const existingSubmissions = new Map();
+        this.submissions.forEach(sub => {
+          existingSubmissions.set(sub.name, sub);
+        });
+        
+        // Add or update submissions from server
+        serverSubmissions.forEach(serverSub => {
+          if (existingSubmissions.has(serverSub.name)) {
+            // Update existing submission with server data (server is authoritative)
+            const index = this.submissions.findIndex(s => s.name === serverSub.name);
+            if (index >= 0) {
+              this.submissions[index] = serverSub;
+            }
+          } else {
+            // Add new submission from server
+            this.submissions.push(serverSub);
+          }
+        });
+        
+        // Save the updated submissions to storage
+        this.saveToStorage();
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Failed to load submissions from server:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Check if a spice already exists in the spice list
+   * @param name The name of the spice to check
+   * @returns True if the spice exists, false otherwise
+   */
+  public spiceExistsInList(name: string): boolean {
+    if (!name || !this.spices.length) return false;
+    
+    const normalizedName = SpiceLogic.properlyCapitalizeName(name).trim();
+    
+    // Check for exact match
+    return this.spices.some(spice => {
+      const spiceName = spice.name.trim();
+      return (
+        spiceName === normalizedName || 
+        spiceName === `${normalizedName},` || 
+        spiceName.startsWith(`${normalizedName},`)
+      );
+    });
   }
 }
