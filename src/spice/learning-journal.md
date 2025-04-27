@@ -262,3 +262,24 @@
   - Provide clear feedback on submission status
 - The implementation strikes a balance between immediate usefulness (custom spices are added to inventory right away) and long-term value (submissions are persisted to the canonical list).
 - As a product engineer, I've learned that persisting user-generated content requires careful consideration of validation rules, file handling, and proper separation of concerns between UI, business logic, and data storage layers.
+
+## April 27, 2025 (night update)
+
+### Final Bugfix: Addressing Function Scope Issues
+
+- Fixed a persistent error with "fetchSpices is not defined" that appeared when submitting custom spices like "Strawberry Preserves".
+- The root cause was a function scope issue: while we had properly moved data fetching to the SpiceLogic class, we were still trying to reference a now non-existent global function.
+- Applied a clean solution by defining a local `loadSpices` function within the `submitCustomSpice` method that correctly leverages the SpiceLogic class methods.
+- This approach maintains the separation of concerns while solving the reference error:
+  - UI component still delegates all data fetching to SpiceLogic
+  - The function exists only where it's needed, avoiding pollution of the component's scope
+  - The solution respects React's functional component paradigm
+- Learned an important lesson about function scope when refactoring: when moving functionality from one location to another, ensure all references are updated accordingly.
+- This experience reinforced a critical React pattern: when defining helper functions that are only used in specific contexts, prefer defining them inline within those contexts rather than at the component level.
+- The final product now correctly handles the full lifecycle of custom spices:
+  1. User adds a custom spice to their inventory
+  2. User submits the spice to be added to the canonical list
+  3. The system persists it to the spicelist.md file
+  4. The UI refreshes to show the updated list
+  5. The spice becomes available to all users through the standard search
+- This represents the completion of our data persistence journey, creating a system that properly balances immediate user utility with long-term knowledge preservation.

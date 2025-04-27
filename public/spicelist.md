@@ -137,6 +137,7 @@ Kabsa Spice Mix
 Krazy Mixed-Up Salt (Herb Salt)
 
 L
+Lingonberry Preserves
 Lavender
 Lemon Myrtle
 Lemongrass
@@ -205,6 +206,7 @@ Rosemary
 Rum Flavoring
 
 S
+Strawberry Preserves
 Sorrel Leaf
 Saffron
 Sage

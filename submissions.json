@@ -19,5 +19,19 @@
     "status": "approved",
     "submittedAt": "2025-04-27T18:07:14.998Z",
     "approvedAt": "2025-04-27T18:07:14.998Z"
+  },
+  {
+    "name": "Strawberry Preserves",
+    "category": "S",
+    "status": "approved",
+    "submittedAt": "2025-04-27T18:17:43.843Z",
+    "approvedAt": "2025-04-27T18:17:43.843Z"
+  },
+  {
+    "name": "Lingonberry Preserves",
+    "category": "L",
+    "status": "approved",
+    "submittedAt": "2025-04-27T18:20:24.206Z",
+    "approvedAt": "2025-04-27T18:20:24.206Z"
   }
 ]

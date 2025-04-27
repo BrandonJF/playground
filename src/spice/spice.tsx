@@ -474,7 +474,25 @@ const SpiceJarOrganizer = () => {
           }));
           
           // Reload spices to include the newly added one
-          fetchSpices();
+          // Use the loadSpices function instead of fetchSpices which doesn't exist
+          const loadSpices = async () => {
+            setLoadingSpices(true);
+            
+            try {
+              // Use the SpiceLogic class method to fetch and update spices
+              await spiceLogicRef.current?.fetchAndUpdateSpices();
+              
+              // Get the updated spices from SpiceLogic
+              setSpices(spiceLogicRef.current?.getSpices() || []);
+            } catch (e) {
+              console.error('Error loading spices:', e);
+              setSpices([]);
+            } finally {
+              setLoadingSpices(false);
+            }
+          };
+          
+          await loadSpices();
           
           alert(`Success! "${spice.name}" has been added to the spice database.`);
         } else if (result.status === 'exists') {
