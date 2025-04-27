@@ -175,3 +175,51 @@
 - The test suite now serves as living documentation of expected behavior and guards against regression.
 - Gained important insight: thorough testing before real-world application saves significant time and prevents frustrating interruptions, especially when coordinating with other people.
 - Confirmed the value of the abstraction when the test suite immediately caught an edge case (0 shelves) that would have caused problems in a real-world scenario.
+
+## April 27, 2025 (evening update)
+
+### Complete Refactoring to SpiceLogic Class
+
+- Finalized the implementation of the SpiceLogic class to fully encapsulate all business logic from the spice.tsx component.
+- Added the critical `calculateOptimalDistribution` method to the SpiceLogic class that was missing but referenced in the component.
+- The implementation uses a three-pass algorithm for distribution:
+  - First pass: Initial distribution of letters to shelves while attempting to keep letters sequential
+  - Second pass: Optimization by moving letters between shelves to achieve better balance
+  - Third pass: Ensuring alphabetical order within each shelf
+- This refactoring provides several benefits:
+  - Improved testability - business logic can now be tested independently from UI components
+  - Better separation of concerns - UI components now focus only on rendering and user interaction
+  - Enhanced maintainability - changes to business logic don't require modifying UI code
+  - Easier extension - new features can be added to the logic layer without impacting the UI
+- The refactoring represents an important step in the project's architecture evolution, moving from a monolithic component to a proper layered design.
+- This architectural improvement enables more efficient collaboration when multiple people work on the project, as frontend and business logic can be developed independently.
+- Confirmed proper functioning by validating that the UI behaves identically after the refactoring, ensuring no regression in user experience.
+
+## April 27, 2025 (final update)
+
+### Proper Name Capitalization Implementation
+
+- Added consistent name capitalization rules to ensure spice names always follow proper conventions regardless of how users enter them.
+- Implemented a sophisticated `properlyCapitalizeName` method in the SpiceLogic class that applies the following rules:
+  - First letter of each word is capitalized (e.g., "Olive Oil" not "olive oil")
+  - Known abbreviations like "BBQ", "MSG", and "CBD" are preserved in all-caps
+  - Connector words like "and", "of", "with" are kept lowercase when not at the beginning of the name
+  - Proper handling of extra whitespace in user input
+  - Support for comma-separated formats (e.g., "Salt, Smoked" becomes "Salt, Smoked")
+- Applied the capitalization logic consistently across all entry points:
+  - When adding custom spices through direct text entry
+  - When selecting spices from the predefined list
+  - When adding spices through keyboard shortcuts
+- This ensures a professionally formatted inventory regardless of how the user types in names.
+- Added comprehensive test coverage for the capitalization feature:
+  - Tests for standard capitalization cases
+  - Tests for special abbreviations
+  - Tests for comma-separated formats
+  - Tests for lowercase connectors
+  - Tests for whitespace handling
+  - Tests for edge cases (empty strings, only whitespace)
+- Verified that all tests pass successfully using our pnpm-based test suite with Vitest.
+- This improvement addresses a subtle but important UX issue: users can type quickly without worrying about proper capitalization, yet the system maintains a polished, consistent presentation.
+- As a product engineer, I've learned that these small refinements to data normalization significantly improve both the visual quality and perceived professionalism of even simple applications.
+- The capitalization logic is an excellent example of moving business rules into the logic layer, further validating our earlier decision to abstract business logic away from UI components.
+- I do wonder the effect of separating out the classes on LLMs. My guess is that we end up saving a fair amount on computation token costs because to reason over the logic doesn't always require processing UI tokens. 

@@ -62,6 +62,39 @@ export class SpiceLogic {
   }
 
   /**
+   * Properly capitalize a spice name according to standard conventions
+   * @param name The raw spice name to capitalize
+   * @returns The properly capitalized spice name
+   */
+  public static properlyCapitalizeName(name: string): string {
+    if (!name) return '';
+    
+    // Trim the input and handle empty string
+    const trimmed = name.trim();
+    if (trimmed === '') return '';
+
+    // Split by spaces to handle different words
+    return trimmed.split(/\s+/).map((word, index) => {
+      if (!word) return '';
+      
+      // Special cases like BBQ, MSG, etc.
+      const knownAbbreviations = ['BBQ', 'MSG', 'CBD'];
+      if (knownAbbreviations.includes(word.toUpperCase())) {
+        return word.toUpperCase();
+      }
+      
+      // Lowercase connectors when they're not the first word
+      const lowercaseConnectors = ['and', 'or', 'the', 'in', 'of', 'with', 'for'];
+      if (index > 0 && lowercaseConnectors.includes(word.toLowerCase())) {
+        return word.toLowerCase();
+      }
+      
+      // Standard case: capitalize first letter, lowercase the rest
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    }).join(' ');
+  }
+
+  /**
    * Load stored data from localStorage
    * @returns Whether data was successfully loaded
    */
@@ -195,12 +228,21 @@ export class SpiceLogic {
    * @returns The created inventory item
    */
   public addSpice(spice: Spice): InventoryItem {
+    // Make sure the name has proper capitalization
+    const properlyCapitalizedName = SpiceLogic.properlyCapitalizeName(spice.name);
+    
+    // Create a new spice object with proper capitalization
+    const properSpice: Spice = {
+      name: properlyCapitalizedName,
+      category: spice.category
+    };
+    
     // Extract the first letter from the spice name and ensure it's uppercase
-    const firstLetter = spice.name.charAt(0).toUpperCase();
+    const firstLetter = properSpice.name.charAt(0).toUpperCase();
     
     // Create a unique ID for this inventory item
     const newItem: InventoryItem = {
-      ...spice,
+      ...properSpice,
       id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
       addedAt: new Date().toLocaleString()
     };
@@ -257,15 +299,185 @@ export class SpiceLogic {
   }
 
   /**
+   * Calculate the optimal distribution of letters across shelves
+   * @returns Array of letter arrays, each representing a shelf
+   */
+  public calculateOptimalDistribution(): string[][] {
+    return this.calculateOptimalDistributionWithParams(this.letterCounts, this.totalJars, this.numShelves);
+  }
+
+  /**
+   * Calculate items per shelf for display
+   * @returns Array of shelf info objects
+   */
+  public calculateItemsPerShelf(): ShelfInfo[] {
+    // Calculate shelf distribution
+    const distribution = this.calculateOptimalDistributionWithParams(this.letterCounts, this.totalJars, this.numShelves);
+    
+    // Convert to shelf info objects
+    const shelfInfo: ShelfInfo[] = [];
+    
+    for (const shelfLetters of distribution) {
+      if (shelfLetters.length === 0) continue;
+      
+      // Create range string (e.g., "A-C")
+      const range = `${shelfLetters[0]}-${shelfLetters[shelfLetters.length - 1]}`;
+      
+      // Calculate total count for this shelf
+      let count = 0;
+      for (const letter of shelfLetters) {
+        count += this.letterCounts[letter] || 0;
+      }
+      
+      shelfInfo.push({ range, count });
+    }
+    
+    return shelfInfo;
+  }
+
+  /**
+   * Calculate the optimal distribution of letters across shelves with provided parameters
+   * @param letterCounts Object containing counts for each letter
+   * @param totalJars Total number of jars
+   * @param numShelves Number of shelves to distribute across
+   * @returns Array of letter arrays, each representing a shelf
+   */
+  private calculateOptimalDistributionWithParams(letterCounts: LetterCounts, totalJars: number, numShelves: number): string[][] {
+    // Default to empty array if no jars or shelves
+    if (totalJars === 0 || numShelves === 0) {
+      return [];
+    }
+
+    // Get all letters that have at least one jar
+    const letters = SpiceLogic.ALPHABET.filter(letter => letterCounts[letter] && letterCounts[letter] > 0);
+    
+    // If no letters with jars, return empty array
+    if (letters.length === 0) {
+      return [];
+    }
+    
+    // If only one shelf, put all letters on it
+    if (numShelves === 1) {
+      return [letters];
+    }
+
+    // Calculate the ideal number of jars per shelf
+    const idealJarsPerShelf = totalJars / numShelves;
+    
+    // Initialize result array
+    const distribution: string[][] = Array(numShelves).fill(null).map(() => []);
+    
+    // Track running counts for each shelf
+    const shelfCounts: number[] = Array(numShelves).fill(0);
+    
+    // Helper function to find the shelf with the fewest jars
+    const findLightestShelf = (): number => {
+      let minIndex = 0;
+      let minCount = shelfCounts[0];
+      
+      for (let i = 1; i < shelfCounts.length; i++) {
+        if (shelfCounts[i] < minCount) {
+          minCount = shelfCounts[i];
+          minIndex = i;
+        }
+      }
+      
+      return minIndex;
+    };
+    
+    // First pass: try to keep letters sequential while balancing
+    let currentShelf = 0;
+    let currentCount = 0;
+    
+    for (const letter of letters) {
+      const letterCount = letterCounts[letter];
+      
+      // If adding this letter exceeds the ideal count AND we're not on the last shelf,
+      // move to the next shelf
+      if (currentCount + letterCount > idealJarsPerShelf && currentShelf < numShelves - 1) {
+        currentShelf++;
+        currentCount = 0;
+      }
+      
+      // Add letter to current shelf
+      distribution[currentShelf].push(letter);
+      currentCount += letterCount;
+      shelfCounts[currentShelf] += letterCount;
+    }
+    
+    // Second pass: optimize by moving letters to balance shelves better
+    let iterations = 0;
+    const maxIterations = 100; // Prevent infinite loops
+    
+    while (iterations < maxIterations) {
+      iterations++;
+      
+      // Find the heaviest and lightest shelves
+      let heaviestShelf = 0;
+      let heaviestCount = shelfCounts[0];
+      let lightestShelf = 0;
+      let lightestCount = shelfCounts[0];
+      
+      for (let i = 1; i < shelfCounts.length; i++) {
+        if (shelfCounts[i] > heaviestCount) {
+          heaviestCount = shelfCounts[i];
+          heaviestShelf = i;
+        }
+        if (shelfCounts[i] < lightestCount) {
+          lightestCount = shelfCounts[i];
+          lightestShelf = i;
+        }
+      }
+      
+      // If shelves are balanced enough, stop optimizing
+      if (heaviestCount - lightestCount <= 1) {
+        break;
+      }
+      
+      // Try to move a letter from the heaviest to lightest shelf
+      const heaviestLetters = distribution[heaviestShelf];
+      
+      // Try last letter first (to keep alphabetical order as much as possible)
+      const lastLetter = heaviestLetters[heaviestLetters.length - 1];
+      const lastLetterCount = letterCounts[lastLetter];
+      
+      // Move the letter if it improves balance
+      if (lastLetterCount <= heaviestCount - lightestCount) {
+        // Remove from heaviest shelf
+        distribution[heaviestShelf].pop();
+        shelfCounts[heaviestShelf] -= lastLetterCount;
+        
+        // Add to lightest shelf
+        distribution[lightestShelf].push(lastLetter);
+        shelfCounts[lightestShelf] += lastLetterCount;
+        
+        // Re-sort the lightest shelf to maintain alphabetical order
+        distribution[lightestShelf].sort();
+      } else {
+        // No more optimization possible
+        break;
+      }
+    }
+    
+    // Third pass: ensure alphabetical order within each shelf
+    for (let i = 0; i < distribution.length; i++) {
+      distribution[i].sort();
+    }
+    
+    // Remove empty shelves (can happen if we have fewer letters than shelves)
+    return distribution.filter(shelf => shelf.length > 0);
+  }
+
+  /**
    * Create a custom spice from a search term
    * @param searchTerm The term to create a custom spice from
    * @returns The created spice object
    */
   public createCustomSpice(searchTerm: string): Spice {
-    const trimmedTerm = searchTerm.trim();
+    const capitalizedName = SpiceLogic.properlyCapitalizeName(searchTerm);
     return {
-      name: trimmedTerm,
-      category: trimmedTerm.charAt(0).toUpperCase(),
+      name: capitalizedName,
+      category: capitalizedName.charAt(0).toUpperCase(),
     };
   }
 
@@ -361,69 +573,6 @@ export class SpiceLogic {
       .filter(item => item.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, limit);
-  }
-
-  /**
-   * Calculate the optimal distribution of spices across shelves
-   * @returns Array of letter groups, one per shelf
-   */
-  public calculateOptimalDistribution(): string[][] {
-    // Don't calculate if there are no jars or no shelves
-    if (this.totalJars === 0 || this.numShelves <= 0) {
-      return [];
-    }
-
-    // Get jar counts for each letter
-    const letterArray = SpiceLogic.ALPHABET.map(letter => ({
-      letter,
-      count: this.letterCounts[letter] || 0
-    }));
-
-    // Only consider letters with jars
-    const filtered = letterArray.filter(item => item.count > 0);
-    if (filtered.length === 0) {
-      return [];
-    }
-
-    // Partition the counts
-    const counts = filtered.map(item => item.count);
-    const partitions = this.linearPartition(counts, Math.min(this.numShelves, filtered.length));
-
-    // Map partitions to letter groups
-    const groups: string[][] = [];
-    for (const [start, end] of partitions) {
-      const group = filtered.slice(start, end + 1).map(item => item.letter);
-      groups.push(group);
-    }
-
-    return groups;
-  }
-
-  /**
-   * Calculate items per shelf based on the optimal distribution
-   * @returns Array of shelf info objects with range and count
-   */
-  public calculateItemsPerShelf(): ShelfInfo[] {
-    // First check if there are no jars or no shelves
-    if (this.totalJars === 0 || this.numShelves <= 0) {
-      return [];
-    }
-    
-    const distribution = this.calculateOptimalDistribution();
-    if (distribution.length === 0) return [];
-    
-    return distribution.map(shelf => {
-      // Calculate total jars on this shelf
-      const count = shelf.reduce((sum: number, letter: string) => sum + (this.letterCounts[letter] || 0), 0);
-      
-      // Create a range string (e.g., "A-D") for display
-      // If it's just one letter, only show that letter
-      const range = shelf.length === 1 
-        ? shelf[0] 
-        : `${shelf[0]}-${shelf[shelf.length - 1]}`;
-        
-      return { range, count };
-    });
   }
 
   /**

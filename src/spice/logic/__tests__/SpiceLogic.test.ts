@@ -1,3 +1,5 @@
+// Run tests using: pnpm vitest run
+// For watch mode use: pnpm vitest
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Spice, SpiceLogic } from '../SpiceLogic';
 
@@ -301,6 +303,51 @@ Cloves`;
       expect(parsed.find(s => s.name === 'Allspice')?.category).toBe('A');
       expect(parsed.find(s => s.name === 'Basil')?.category).toBe('B');
       expect(parsed.find(s => s.name === 'Cinnamon')?.category).toBe('C');
+    });
+  });
+
+  describe('Name Capitalization', () => {
+    it('should properly capitalize spice names', () => {
+      // Standard cases
+      expect(SpiceLogic.properlyCapitalizeName('cinnamon')).toBe('Cinnamon');
+      expect(SpiceLogic.properlyCapitalizeName('black pepper')).toBe('Black Pepper');
+      expect(SpiceLogic.properlyCapitalizeName('olive oil')).toBe('Olive Oil');
+      
+      // Handling extra whitespace
+      expect(SpiceLogic.properlyCapitalizeName('  garlic  powder  ')).toBe('Garlic Powder');
+      
+      // Special cases like BBQ
+      expect(SpiceLogic.properlyCapitalizeName('bbq seasoning')).toBe('BBQ Seasoning');
+      expect(SpiceLogic.properlyCapitalizeName('msg powder')).toBe('MSG Powder');
+      
+      // Comma-separated formats
+      expect(SpiceLogic.properlyCapitalizeName('salt, smoked')).toBe('Salt, Smoked');
+      expect(SpiceLogic.properlyCapitalizeName('pepper, black')).toBe('Pepper, Black');
+      
+      // Lowercase connectors
+      expect(SpiceLogic.properlyCapitalizeName('herbs of provence')).toBe('Herbs of Provence');
+      expect(SpiceLogic.properlyCapitalizeName('salt with garlic')).toBe('Salt with Garlic');
+      
+      // Mixed cases shouldn't be changed
+      expect(SpiceLogic.properlyCapitalizeName('Himalayan Pink Salt')).toBe('Himalayan Pink Salt');
+      
+      // Edge cases
+      expect(SpiceLogic.properlyCapitalizeName('')).toBe('');
+      expect(SpiceLogic.properlyCapitalizeName('   ')).toBe('');
+    });
+    
+    it('should create a custom spice with proper capitalization', () => {
+      const customSpice = spiceLogic.createCustomSpice('smoked paprika');
+      expect(customSpice.name).toBe('Smoked Paprika');
+      expect(customSpice.category).toBe('S');
+    });
+    
+    it('should ensure proper capitalization when adding spices', () => {
+      const spice = { name: 'garlic powder', category: 'G' };
+      const item = spiceLogic.addSpice(spice);
+      
+      expect(item.name).toBe('Garlic Powder');
+      expect(spiceLogic.getInventory()[0].name).toBe('Garlic Powder');
     });
   });
 });

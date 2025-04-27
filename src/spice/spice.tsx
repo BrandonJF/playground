@@ -12,48 +12,13 @@
  */
 import { useEffect, useRef, useState } from 'react';
 
-// Spice interface for parsed data
-interface Spice {
-  name: string;
-  category: string; // First letter
-}
-
-// Interface for inventory items - tracks actual spices added
-interface InventoryItem extends Spice {
-  id: string; // Unique identifier
-  addedAt: string; // Timestamp
-}
-
-// Interface for letter counts object
-interface LetterCounts {
-  [key: string]: number;
-}
-
-// Interface for shelf distribution visualization
-interface ShelfInfo {
-  range: string;
-  count: number;
-}
-
-// Interface for saved data in localStorage
-interface SavedData {
-  inventory: InventoryItem[];
-  letterCounts: LetterCounts;
-  numShelves: number;
-  totalJars: number;
-  lastUpdated: string;
-}
+// Import the SpiceLogic class and interfaces from logic folder
+import { InventoryItem, LetterCounts, ShelfInfo, Spice, SpiceLogic } from './logic/SpiceLogic';
 
 // Interface for fuzzy search result with score
 interface FuzzySearchResult extends Spice {
   score: number;
 }
-
-// Local storage key
-const STORAGE_KEY = 'spice-organizer-data';
-
-// Move alphabet outside the component to avoid re-creation on every render
-const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
 // Enhanced fuzzy search function with support for skipped characters
 function fuzzySearch(items: Spice[], query: string): FuzzySearchResult[] {
@@ -144,6 +109,9 @@ function fuzzySearch(items: Spice[], query: string): FuzzySearchResult[] {
 }
 
 const SpiceJarOrganizer = () => {
+  // Create a ref for the SpiceLogic instance that persists across renders
+  const spiceLogicRef = useRef<SpiceLogic | null>(null);
+  
   // State to track the inventory of specific spices
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   
@@ -174,34 +142,27 @@ const SpiceJarOrganizer = () => {
   const [lastSaved, setLastSaved] = useState<string | null>(null);
 
   /**
-   * Load data from localStorage on component mount
+   * Initialize SpiceLogic instance and load data on component mount
    */
   useEffect(() => {
-    // First initialize with zeros
-    const initialCounts: LetterCounts = {};
-    alphabet.forEach(letter => {
-      initialCounts[letter] = 0;
-    });
+    // Initialize SpiceLogic if not already done
+    if (!spiceLogicRef.current) {
+      spiceLogicRef.current = new SpiceLogic();
+    }
     
-    // Then try to load saved data
-    try {
-      const savedData = localStorage.getItem(STORAGE_KEY);
-      if (savedData) {
-        const parsedData: SavedData = JSON.parse(savedData);
-        setInventory(parsedData.inventory || []);
-        setLetterCounts(parsedData.letterCounts);
-        setNumShelves(parsedData.numShelves);
-        setTotalJars(parsedData.totalJars);
-        setLastSaved(parsedData.lastUpdated);
-        console.log('Loaded data from localStorage:', parsedData);
-      } else {
-        setLetterCounts(initialCounts);
-        setInventory([]);
-      }
-    } catch (error) {
-      console.error('Failed to load data from localStorage:', error);
-      setLetterCounts(initialCounts);
-      setInventory([]);
+    // Load data from storage
+    const spiceLogic = spiceLogicRef.current;
+    const loadResult = spiceLogic.loadFromStorage();
+    
+    // Update component state with data from SpiceLogic
+    setInventory(spiceLogic.getInventory());
+    setLetterCounts(spiceLogic.getLetterCounts());
+    setNumShelves(spiceLogic.getNumShelves());
+    setTotalJars(spiceLogic.getTotalJars());
+    
+    // Set last updated timestamp if data was loaded
+    if (loadResult) {
+      setLastSaved(spiceLogic.getLastUpdated());
     }
   }, []);
 
@@ -209,24 +170,25 @@ const SpiceJarOrganizer = () => {
    * Save data to localStorage whenever inventory, letter counts, shelves, or total jars change
    */
   useEffect(() => {
-    // Skip initial render when letter counts object is empty
-    if (Object.keys(letterCounts).length === 0) return;
+    // Skip if SpiceLogic is not initialized or on first render
+    if (!spiceLogicRef.current || Object.keys(letterCounts).length === 0) return;
     
     const saveData = async () => {
       try {
         setSaveStatus('saving');
-        const now = new Date().toLocaleString();
-        const dataToSave: SavedData = {
-          inventory,
-          letterCounts,
-          numShelves,
-          totalJars,
-          lastUpdated: now
-        };
         
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
-        setLastSaved(now);
-        setSaveStatus('saved');
+        // Update SpiceLogic instance with current state
+        const spiceLogic = spiceLogicRef.current!;
+        
+        // Save to storage
+        const saveResult = spiceLogic.saveToStorage();
+        
+        if (saveResult) {
+          setLastSaved(spiceLogic.getLastUpdated());
+          setSaveStatus('saved');
+        } else {
+          setSaveStatus('error');
+        }
       } catch (error) {
         console.error('Failed to save data to localStorage:', error);
         setSaveStatus('error');
@@ -242,14 +204,20 @@ const SpiceJarOrganizer = () => {
    * Clear all data from localStorage
    */
   const clearSavedData = () => {
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-      resetInventory();
-      setNumShelves(3);
+    if (!spiceLogicRef.current) return;
+    
+    const clearResult = spiceLogicRef.current.clearStorage();
+    
+    if (clearResult) {
+      // Update component state
+      setInventory([]);
+      setLetterCounts(spiceLogicRef.current.getLetterCounts());
+      setNumShelves(spiceLogicRef.current.getNumShelves());
+      setTotalJars(0);
       setLastSaved(null);
       console.log('Cleared data from localStorage');
-    } catch (error) {
-      console.error('Failed to clear data from localStorage:', error);
+    } else {
+      console.error('Failed to clear data from localStorage');
     }
   };
 
@@ -303,6 +271,11 @@ const SpiceJarOrganizer = () => {
           }
         }
         setSpices(parsed);
+        
+        // Update spices in SpiceLogic
+        if (spiceLogicRef.current) {
+          spiceLogicRef.current.setSpices(parsed);
+        }
       } catch (e) {
         setSpices([]);
       }
@@ -333,35 +306,24 @@ const SpiceJarOrganizer = () => {
    * @param {Spice} spice - The spice to add
    */
   const addSpice = (spice: Spice) => {
-    // Extract the first letter from the spice name and ensure it's uppercase
-    const firstLetter = spice.name.charAt(0).toUpperCase();
+    if (!spiceLogicRef.current) return;
     
-    // Create a unique ID for this inventory item
-    const newItem: InventoryItem = {
-      ...spice,
-      id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-      addedAt: new Date().toLocaleString()
-    };
+    const spiceLogic = spiceLogicRef.current;
     
-    // Add to inventory
-    setInventory(prev => [...prev, newItem]);
+    // Add the spice using SpiceLogic
+    const newItem = spiceLogic.addSpice(spice);
     
-    // Update letter counts
-    const updatedCounts = { ...letterCounts };
-    updatedCounts[firstLetter] = (updatedCounts[firstLetter] || 0) + 1;
-    setLetterCounts(updatedCounts);
-    
-    // Increment total jar count
-    const newTotalCount = totalJars + 1;
-    setTotalJars(newTotalCount);
-    
-    // Add debug info to console
-    console.log(`Added ${spice.name} (${firstLetter}): Count is now ${updatedCounts[firstLetter]}`);
-    console.log(`Total jars: ${newTotalCount}`);
+    // Update component state
+    setInventory(spiceLogic.getInventory());
+    setLetterCounts(spiceLogic.getLetterCounts());
+    setTotalJars(spiceLogic.getTotalJars());
     
     // Clear search after adding
     setSearchTerm('');
     setShowResults(false);
+    
+    console.log(`Added ${spice.name} (${spice.category}): Count is now ${spiceLogic.getLetterCounts()[spice.category] || 0}`);
+    console.log(`Total jars: ${spiceLogic.getTotalJars()}`);
   };
 
   /**
@@ -369,123 +331,40 @@ const SpiceJarOrganizer = () => {
    * @param {string} id - The ID of the inventory item to remove
    */
   const removeSpice = (id: string) => {
-    // Find the item to remove
+    if (!spiceLogicRef.current) return;
+    
+    const spiceLogic = spiceLogicRef.current;
+    
+    // Find the item to remove (for logging)
     const itemToRemove = inventory.find(item => item.id === id);
     if (!itemToRemove) return;
     
-    // Extract the first letter and update counts
-    const firstLetter = itemToRemove.name.charAt(0).toUpperCase();
+    // Remove the spice using SpiceLogic
+    spiceLogic.removeSpice(id);
     
-    // Remove from inventory
-    setInventory(prev => prev.filter(item => item.id !== id));
+    // Update component state
+    setInventory(spiceLogic.getInventory());
+    setLetterCounts(spiceLogic.getLetterCounts());
+    setTotalJars(spiceLogic.getTotalJars());
     
-    // Update letter counts
-    const updatedCounts = { ...letterCounts };
-    updatedCounts[firstLetter] = Math.max(0, (updatedCounts[firstLetter] || 0) - 1);
-    setLetterCounts(updatedCounts);
-    
-    // Decrement total jar count
-    const newTotalCount = totalJars - 1;
-    setTotalJars(newTotalCount);
-    
-    console.log(`Removed ${itemToRemove.name} (${firstLetter}): Count is now ${updatedCounts[firstLetter]}`);
-    console.log(`Total jars: ${newTotalCount}`);
+    console.log(`Removed ${itemToRemove.name} (${itemToRemove.category}): Count is now ${spiceLogic.getLetterCounts()[itemToRemove.category] || 0}`);
+    console.log(`Total jars: ${spiceLogic.getTotalJars()}`);
   };
 
   /**
    * Reset the entire inventory and letter counts
    */
   const resetInventory = () => {
-    setInventory([]);
+    if (!spiceLogicRef.current) return;
     
-    const resetCounts: LetterCounts = {};
-    alphabet.forEach(letter => {
-      resetCounts[letter] = 0;
-    });
-    setLetterCounts(resetCounts);
+    // Reset inventory using SpiceLogic
+    spiceLogicRef.current.resetInventory();
+    
+    // Update component state
+    setInventory([]);
+    setLetterCounts(spiceLogicRef.current.getLetterCounts());
     setTotalJars(0);
   };
-
-  // Linear partition algorithm for optimal shelf distribution
-  function linearPartition(seq: number[], k: number): number[][] {
-    const n = seq.length;
-    if (k <= 0) return [];
-    if (k > n) k = n;
-    const table: number[][] = Array.from({ length: n }, () => Array(k).fill(0));
-    const solution: number[][] = Array.from({ length: n - 1 }, () => Array(k - 1).fill(0));
-
-    // Fill in the first column of the table (one shelf)
-    table[0][0] = seq[0];
-    for (let i = 1; i < n; ++i) {
-      table[i][0] = seq[i] + table[i - 1][0];
-    }
-    // Fill in the first row of the table (one item per shelf)
-    for (let j = 1; j < k; ++j) {
-      table[0][j] = seq[0];
-    }
-    // DP to fill the rest
-    for (let i = 1; i < n; ++i) {
-      for (let j = 1; j < k; ++j) {
-        let min = Infinity;
-        let minX = -1;
-        for (let x = 0; x < i; ++x) {
-          const cost = Math.max(table[x][j - 1], table[i][0] - table[x][0]);
-          if (cost < min) {
-            min = cost;
-            minX = x;
-          }
-        }
-        table[i][j] = min;
-        solution[i - 1][j - 1] = minX;
-      }
-    }
-    // Reconstruct partition
-    const ans: number[][] = [];
-    const nItems = n;
-    let kShelves = k;
-    let idx = n - 1;
-    while (kShelves > 1) {
-      const s = solution[idx - 1][kShelves - 2];
-      ans.unshift([s + 1, idx]);
-      idx = s;
-      kShelves--;
-    }
-    ans.unshift([0, idx]);
-    return ans;
-  }
-
-  /**
-   * Calculate the optimal distribution of spice jars across shelves
-   * This runs whenever the letter counts, total jars, or number of shelves changes
-   */
-  useEffect(() => {
-    // Don't calculate if there are no jars or no shelves
-    if (totalJars === 0 || numShelves <= 0) {
-      setOptimalDistribution([]);
-      return;
-    }
-    // Get jar counts for each letter
-    const letterArray = alphabet.map(letter => ({
-      letter,
-      count: letterCounts[letter] || 0
-    }));
-    // Only consider letters with jars
-    const filtered = letterArray.filter(item => item.count > 0);
-    if (filtered.length === 0) {
-      setOptimalDistribution([]);
-      return;
-    }
-    // Partition the counts
-    const counts = filtered.map(item => item.count);
-    const partitions = linearPartition(counts, Math.min(numShelves, filtered.length));
-    // Map partitions to letter groups
-    const groups: string[][] = [];
-    for (const [start, end] of partitions) {
-      const group = filtered.slice(start, end + 1).map(item => item.letter);
-      groups.push(group);
-    }
-    setOptimalDistribution(groups);
-  }, [letterCounts, totalJars, numShelves]);
 
   /**
    * Calculate display information for each shelf
@@ -507,6 +386,18 @@ const SpiceJarOrganizer = () => {
       return { range, count };
     });
   };
+  
+  /**
+   * Calculate the optimal distribution of spice jars across shelves
+   * This runs whenever the letter counts, total jars, or number of shelves changes
+   */
+  useEffect(() => {
+    if (!spiceLogicRef.current) return;
+    
+    // Get the optimal distribution from SpiceLogic
+    const distribution = spiceLogicRef.current.calculateOptimalDistribution(letterCounts, totalJars, numShelves);
+    setOptimalDistribution(distribution);
+  }, [letterCounts, totalJars, numShelves]);
   
   const itemsPerShelf = calculateItemsPerShelf();
 
@@ -530,9 +421,9 @@ const SpiceJarOrganizer = () => {
       
       // Key "0" - Add custom spice
       if (keyNum === 0) {
-        // Create custom spice from the search term
-        const customSpice: Spice = {
-          name: searchTerm.trim(),
+        // Create custom spice from the search term using SpiceLogic's method
+        const customSpice = spiceLogicRef.current?.createCustomSpice(searchTerm) || {
+          name: SpiceLogic.properlyCapitalizeName(searchTerm),
           category: searchTerm.trim().charAt(0).toUpperCase(),
         };
         addSpice(customSpice);
@@ -568,7 +459,13 @@ const SpiceJarOrganizer = () => {
               min="1"
               max="10"
               value={numShelves}
-              onChange={(e) => setNumShelves(Math.max(1, parseInt(e.target.value) || 1))}
+              onChange={(e) => {
+                const newValue = Math.max(1, parseInt(e.target.value) || 1);
+                setNumShelves(newValue);
+                if (spiceLogicRef.current) {
+                  spiceLogicRef.current.setNumShelves(newValue);
+                }
+              }}
               className="ml-2 p-1 border rounded"
             />
           </label>
@@ -637,9 +534,9 @@ const SpiceJarOrganizer = () => {
               <div
                 className="p-2 bg-green-50 hover:bg-green-100 cursor-pointer flex justify-between items-center border-b"
                 onClick={() => {
-                  // Create custom spice from the search term
-                  const customSpice: Spice = {
-                    name: searchTerm.trim(),
+                  // Create custom spice from the search term using SpiceLogic's method
+                  const customSpice = spiceLogicRef.current?.createCustomSpice(searchTerm) || {
+                    name: SpiceLogic.properlyCapitalizeName(searchTerm),
                     category: searchTerm.trim().charAt(0).toUpperCase(),
                   };
                   addSpice(customSpice);
@@ -651,7 +548,7 @@ const SpiceJarOrganizer = () => {
                       <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
                     </svg>
                   </span>
-                  <span>Add "<strong>{searchTerm.trim()}</strong>"</span>
+                  <span>Add "<strong>{SpiceLogic.properlyCapitalizeName(searchTerm.trim())}</strong>"</span>
                 </span>
                 <button 
                   className="px-3 py-1 bg-green-500 text-white rounded text-xs font-bold min-w-[32px]"
@@ -706,7 +603,7 @@ const SpiceJarOrganizer = () => {
       <div className="mb-6 p-4 bg-white rounded shadow">
         <h3 className="font-medium mb-2">Jar Count by Letter:</h3>
         <div className="grid grid-cols-6 sm:grid-cols-9 gap-2">
-          {alphabet.map(letter => (
+          {Object.keys(letterCounts).sort().map(letter => (
             <div key={letter} className="flex flex-col items-center">
               <div className="flex flex-col items-center">
                 <span className={`font-medium ${letterCounts[letter] > 0 ? 'text-blue-600' : 'text-gray-400'}`}>
