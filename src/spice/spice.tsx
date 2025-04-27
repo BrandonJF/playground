@@ -571,9 +571,18 @@ const SpiceJarOrganizer = () => {
               value={numShelves}
               onChange={(e) => {
                 const newValue = Math.max(1, parseInt(e.target.value) || 1);
-                setNumShelves(newValue);
                 if (spiceLogicRef.current) {
+                  // First update SpiceLogic
                   spiceLogicRef.current.setNumShelves(newValue);
+                  
+                  // Force recalculation of distribution
+                  const distribution = spiceLogicRef.current.calculateOptimalDistribution();
+                  
+                  // Then update component state in a batch to ensure synchronization
+                  setNumShelves(newValue);
+                  setOptimalDistribution(distribution);
+                  
+                  console.log(`Shelves updated to ${newValue}, distribution recalculated:`, distribution);
                 }
               }}
               className="ml-2 p-1 border rounded"
