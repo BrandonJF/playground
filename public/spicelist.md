@@ -44,6 +44,7 @@ Arrowroot Powder
 Assam Tea
 
 B
+Black Pepper
 Baharat
 Basil
 Bay Leaves
@@ -52,6 +53,10 @@ Berbere
 Bouquet Garni
 
 C
+Chili Bean Sauce
+Chili Powder
+Cajun
+Chipotle
 Caraway
 Cardamom
 Cayenne Pepper
@@ -90,6 +95,7 @@ Dill
 Dukkah
 
 E
+Elderberry
 Everything Bagel Seasoning
 Extract, Almond
 Extract, Lemon
@@ -105,6 +111,7 @@ French Mustard & Herb Blend
 Furikake
 
 G
+Garlic and Parsley Mix
 Galangal
 Garlic
 Garlic, Black
@@ -115,6 +122,7 @@ Green Tea
 Gumbo File
 
 H
+Habanero Chili Powder
 Honey
 Harissa
 Hawaij
@@ -128,6 +136,7 @@ I
 Italian Herb Seasoning
 
 J
+Jerk
 Jamaican Jerk
 Jasmine Tea
 Juniper Berries
@@ -168,6 +177,7 @@ Nutmeg
 Nutritional Yeast
 
 O
+Old Bay
 Oregano
 Onion Flakes
 Onion Powder
@@ -206,6 +216,9 @@ Rosemary
 Rum Flavoring
 
 S
+Scullcap
+Season All
+Seafood Seasoning
 Strawberry Preserves
 Sorrel Leaf
 Saffron
@@ -238,6 +251,7 @@ Sugar, Turbinado
 Sumac
 
 T
+Tajin
 Taco Seasoning
 Tajín
 Tamarind
@@ -255,6 +269,7 @@ U
 Urfa Biber
 
 V
+Vanilla Extract
 Vinegar Powder
 
 W

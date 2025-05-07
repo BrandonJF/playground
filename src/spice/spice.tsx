@@ -139,6 +139,9 @@ const SpiceJarOrganizer = () => {
   // Total count of all jars across all letters
   const [totalJars, setTotalJars] = useState(0);
   
+  // State to track whether duplicates should be ignored in distribution
+  const [ignoreDuplicates, setIgnoreDuplicates] = useState(false);
+  
   // The calculated optimal distribution of letters across shelves
   const [optimalDistribution, setOptimalDistribution] = useState<string[][]>([]);
 
@@ -153,11 +156,34 @@ const SpiceJarOrganizer = () => {
   const [loadingSpices, setLoadingSpices] = useState(true);
   
   // Save status indicator
-  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error' | 'loading'>('saved');
   const [lastSaved, setLastSaved] = useState<string | null>(null);
 
   // State to track submitted custom spices
   const [submittedSpices, setSubmittedSpices] = useState<{[key: string]: 'pending' | 'approved' | 'rejected'}>({});
+
+  // New state for user name
+  const [userName, setUserName] = useState<string | null>(null);
+  
+  // State for tracking if user has set a name
+  const [hasSetUserName, setHasSetUserName] = useState<boolean>(false);
+  
+  // Handler for setting user name
+  const handleSetUserName = () => {
+    if (!userName || !userName.trim() || !spiceLogicRef.current) return;
+    spiceLogicRef.current.setUserName(userName);
+    setHasSetUserName(true);
+  };
+  
+  // Initialization of SpiceLogic
+  useEffect(() => {
+    if (!spiceLogicRef.current) {
+      spiceLogicRef.current = new SpiceLogic();
+      // In playground context, we're always setting a default username
+      setUserName(spiceLogicRef.current.getUserNameValue() || "Playground User");
+      setHasSetUserName(true);
+    }
+  }, []);
 
   /**
    * Initialize SpiceLogic instance and load data on component mount
@@ -168,24 +194,44 @@ const SpiceJarOrganizer = () => {
       spiceLogicRef.current = new SpiceLogic();
     }
     
-    // Load data from storage
+    // Load data from storage and server
     const spiceLogic = spiceLogicRef.current;
-    const loadResult = spiceLogic.loadFromStorage();
     
-    // Update component state with data from SpiceLogic
-    setInventory(spiceLogic.getInventory());
-    setLetterCounts(spiceLogic.getLetterCounts());
-    setNumShelves(spiceLogic.getNumShelves());
-    setTotalJars(spiceLogic.getTotalJars());
+    // Use the loadData method that tries both server and localStorage
+    const loadDataFromSources = async () => {
+      setSaveStatus('loading');
+      
+      try {
+        const loadResult = await spiceLogic.loadData();
+        
+        if (loadResult.success) {
+          // Update component state with data from SpiceLogic
+          setInventory(spiceLogic.getInventory());
+          setLetterCounts(spiceLogic.getLetterCounts());
+          setNumShelves(spiceLogic.getNumShelves());
+          setTotalJars(spiceLogic.getTotalJars());
+          
+          // Set last updated timestamp
+          setLastSaved(spiceLogic.getLastUpdated());
+          setSaveStatus('saved');
+          
+          // Show a message about where data was loaded from
+          console.log(`Data loaded from ${loadResult.source}`);
+        } else {
+          setSaveStatus('error');
+          console.error('Failed to load data:', loadResult.error);
+        }
+      } catch (error) {
+        setSaveStatus('error');
+        console.error('Error loading data:', error);
+      }
+    };
     
-    // Set last updated timestamp if data was loaded
-    if (loadResult) {
-      setLastSaved(spiceLogic.getLastUpdated());
-    }
+    loadDataFromSources();
   }, []);
 
   /**
-   * Save data to localStorage whenever inventory, letter counts, shelves, or total jars change
+   * Save data to localStorage and server whenever inventory, letter counts, shelves, or total jars change
    */
   useEffect(() => {
     // Skip if SpiceLogic is not initialized or on first render
@@ -198,17 +244,24 @@ const SpiceJarOrganizer = () => {
         // Update SpiceLogic instance with current state
         const spiceLogic = spiceLogicRef.current!;
         
-        // Save to storage
-        const saveResult = spiceLogic.saveToStorage();
+        // Save to both localStorage and server
+        const saveResult = await spiceLogic.saveData();
         
-        if (saveResult) {
+        if (saveResult.localStorage && saveResult.server) {
           setLastSaved(spiceLogic.getLastUpdated());
           setSaveStatus('saved');
         } else {
+          // At least one save method failed
+          if (!saveResult.localStorage) {
+            console.error('Failed to save to localStorage');
+          }
+          if (!saveResult.server) {
+            console.error('Failed to save to server:', saveResult.error);
+          }
           setSaveStatus('error');
         }
       } catch (error) {
-        console.error('Failed to save data to localStorage:', error);
+        console.error('Failed to save data:', error);
         setSaveStatus('error');
       }
     };
@@ -319,7 +372,9 @@ const SpiceJarOrganizer = () => {
     setSearchTerm('');
     setShowResults(false);
     
-    console.log(`Added ${spice.name} (${spice.category}): Count is now ${spiceLogic.getLetterCounts()[spice.category] || 0}`);
+    // Get the first letter for logging
+    const firstLetter = spice.name.charAt(0).toUpperCase();
+    console.log(`Added ${spice.name}: Count is now ${spiceLogic.getLetterCounts()[firstLetter] || 0}`);
     console.log(`Total jars: ${spiceLogic.getTotalJars()}`);
   };
 
@@ -344,7 +399,9 @@ const SpiceJarOrganizer = () => {
     setLetterCounts(spiceLogic.getLetterCounts());
     setTotalJars(spiceLogic.getTotalJars());
     
-    console.log(`Removed ${itemToRemove.name} (${itemToRemove.category}): Count is now ${spiceLogic.getLetterCounts()[itemToRemove.category] || 0}`);
+    // Get the first letter for logging
+    const firstLetter = itemToRemove.name.charAt(0).toUpperCase();
+    console.log(`Removed ${itemToRemove.name}: Count is now ${spiceLogic.getLetterCounts()[firstLetter] || 0}`);
     console.log(`Total jars: ${spiceLogic.getTotalJars()}`);
   };
 
@@ -368,11 +425,14 @@ const SpiceJarOrganizer = () => {
    * @returns {Array} Array of objects with range (e.g., "A-D") and count of jars
    */
   const calculateItemsPerShelf = (): ShelfInfo[] => {
-    if (!optimalDistribution.length) return [];
+    if (!optimalDistribution.length || !spiceLogicRef.current) return [];
+    
+    // Get effective letter counts that respect the "ignoreDuplicates" setting
+    const effectiveLetterCounts = spiceLogicRef.current.getEffectiveLetterCounts();
     
     return optimalDistribution.map(shelf => {
-      // Calculate total jars on this shelf
-      const count = shelf.reduce((sum: number, letter: string) => sum + (letterCounts[letter] || 0), 0);
+      // Calculate total jars on this shelf using the effective counts
+      const count = shelf.reduce((sum: number, letter: string) => sum + (effectiveLetterCounts[letter] || 0), 0);
       
       // Create a range string (e.g., "A-D") for display
       // If it's just one letter, only show that letter
@@ -559,291 +619,378 @@ const SpiceJarOrganizer = () => {
     <div className="flex flex-col p-4 max-w-3xl mx-auto bg-gray-50 rounded-lg shadow">
       <h2 className="text-2xl font-bold text-center mb-6">Spice Jar Organizer</h2>
       
-      {/* Configuration section for shelves and reset/clear buttons */}
-      <div className="mb-6 p-4 bg-white rounded shadow">
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-          <label className="block font-medium">
-            Number of Shelves:
-            <input
-              type="number"
-              min="1"
-              max="10"
-              value={numShelves}
-              onChange={(e) => {
-                const newValue = Math.max(1, parseInt(e.target.value) || 1);
-                if (spiceLogicRef.current) {
-                  // First update SpiceLogic
-                  spiceLogicRef.current.setNumShelves(newValue);
-                  
-                  // Force recalculation of distribution
-                  const distribution = spiceLogicRef.current.calculateOptimalDistribution();
-                  
-                  // Then update component state in a batch to ensure synchronization
-                  setNumShelves(newValue);
-                  setOptimalDistribution(distribution);
-                  
-                  console.log(`Shelves updated to ${newValue}, distribution recalculated:`, distribution);
-                }
-              }}
-              className="ml-2 p-1 border rounded"
-            />
-          </label>
-          <div className="flex items-center gap-2">
-            <span className="font-medium">Total Jars: {totalJars}</span>
-            <div className="flex gap-2">
-              <button 
-                onClick={resetInventory}
-                className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600"
-                title="Reset inventory but keep in localStorage"
-              >
-                Reset
-              </button>
-              <button 
-                onClick={clearSavedData}
-                className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
-                title="Clear all data including from localStorage"
-              >
-                Clear All
-              </button>
-            </div>
-          </div>
-        </div>
-        
-        {/* Save status indicator */}
-        <div className="mt-2 flex justify-between items-center text-xs text-gray-600">
-          <div className="flex items-center">
-            <span className={`inline-block w-2 h-2 rounded-full mr-1 ${
-              saveStatus === 'saved' ? 'bg-green-500' : 
-              saveStatus === 'saving' ? 'bg-yellow-500' : 'bg-red-500'
-            }`}></span>
-            <span>
-              {saveStatus === 'saved' ? 'All changes saved' : 
-               saveStatus === 'saving' ? 'Saving...' : 'Error saving'}
-            </span>
-          </div>
-          {lastSaved && (
-            <span>Last saved: {lastSaved}</span>
-          )}
-        </div>
-      </div>
-      
-      {/* Spice search autocomplete */}
-      <div className="mb-6 p-4 bg-white rounded shadow">
-        <h3 className="font-medium mb-2">Find and add spices:</h3>
-        <div ref={searchRef} className="relative">
-          <div className="flex">
-            <input
-              type="text"
-              placeholder="Type to search for spices..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setShowResults(true);
-              }}
-              onFocus={() => setShowResults(true)}
-              onKeyDown={handleKeyDown}
-              className="p-2 border rounded flex-grow"
-            />
-          </div>
+      {/* Username setup screen - shown when no username is set */}
+      {!hasSetUserName ? (
+        <div className="mb-6 p-8 bg-white rounded shadow text-center">
+          <h3 className="font-medium text-xl mb-4">Welcome to Spice Jar Organizer</h3>
+          <p className="mb-4">Please enter your name to get started. Your inventory will be associated with this name.</p>
           
-          {/* Autocomplete results dropdown */}
-          {showResults && searchTerm && (
-            <div className="absolute z-10 w-full mt-1 bg-white border rounded shadow-lg max-h-60 overflow-y-auto">
-              {/* Option to add a custom spice if search term is not empty */}
-              <div
-                className="p-2 bg-green-50 hover:bg-green-100 cursor-pointer flex justify-between items-center border-b"
-                onClick={() => {
-                  // Create custom spice from the search term using SpiceLogic's method
-                  const customSpice = spiceLogicRef.current?.createCustomSpice(searchTerm) || {
-                    name: SpiceLogic.properlyCapitalizeName(searchTerm),
-                    category: searchTerm.trim().charAt(0).toUpperCase(),
-                  };
-                  addSpice(customSpice);
-                }}
-              >
-                <span className="flex items-center">
-                  <span className="inline-block w-5 h-5 bg-green-500 text-white rounded-full text-center mr-2 flex items-center justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                    </svg>
-                  </span>
-                  <span>Add "<strong>{SpiceLogic.properlyCapitalizeName(searchTerm.trim())}</strong>"</span>
-                </span>
-                <button 
-                  className="px-3 py-1 bg-green-500 text-white rounded text-xs font-bold min-w-[32px]"
-                  title="Press 0 to add custom spice"
-                >
-                  0
-                </button>
+          <div className="flex flex-col items-center gap-4">
+            <div className="flex items-center w-full max-w-md">
+              <label className="font-medium mr-2">
+                Your Name:
+                <input
+                  type="text"
+                  placeholder="Enter your name"
+                  value={userName || ''}
+                  onChange={(e) => setUserName(e.target.value)}
+                  className="ml-2 p-2 border rounded w-full"
+                />
+              </label>
+            </div>
+            <button 
+              onClick={handleSetUserName}
+              disabled={!userName || !userName.trim()}
+              className={`px-4 py-2 rounded text-white ${
+                !userName || !userName.trim() ? 'bg-gray-400' : 'bg-blue-500 hover:bg-blue-600'
+              }`}
+            >
+              Get Started
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Configuration section for shelves and reset/clear buttons */}
+          <div className="mb-6 p-4 bg-white rounded shadow">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+              <div className="flex items-center gap-4">
+                <label className="block font-medium">
+                  Number of Shelves:
+                  <input
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={numShelves}
+                    onChange={(e) => {
+                      const newValue = Math.max(1, parseInt(e.target.value) || 1);
+                      if (spiceLogicRef.current) {
+                        // First update SpiceLogic
+                        spiceLogicRef.current.setNumShelves(newValue);
+                        
+                        // Force recalculation of distribution
+                        const distribution = spiceLogicRef.current.calculateOptimalDistribution();
+                        
+                        // Then update component state in a batch to ensure synchronization
+                        setNumShelves(newValue);
+                        setOptimalDistribution(distribution);
+                        
+                        console.log(`Shelves updated to ${newValue}, distribution recalculated:`, distribution);
+                      }
+                    }}
+                    className="ml-2 p-1 border rounded"
+                  />
+                </label>
+                
+                {/* Add toggle for ignoring duplicates */}
+                <div className="flex items-center">
+                  <label className="flex items-center font-medium cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={ignoreDuplicates}
+                      onChange={(e) => {
+                        const newValue = e.target.checked;
+                        if (spiceLogicRef.current) {
+                          // Update SpiceLogic setting
+                          spiceLogicRef.current.setIgnoreDuplicates(newValue);
+                          
+                          // Force recalculation of distribution
+                          const distribution = spiceLogicRef.current.calculateOptimalDistribution();
+                          
+                          // Update component state
+                          setIgnoreDuplicates(newValue);
+                          setOptimalDistribution(distribution);
+                        }
+                      }}
+                      className="mr-2"
+                    />
+                    Ignore Duplicates
+                    <span className="ml-1 text-xs text-gray-500 italic">(Ideal)</span>
+                  </label>
+                </div>
+                
+                {/* Add user name input */}
+                <div className="flex items-center">
+                  <label className="font-medium">
+                    Session Name:
+                    <input
+                      type="text"
+                      placeholder="Enter your name"
+                      value={userName || ''}
+                      onChange={(e) => {
+                        setUserName(e.target.value);
+                        if (spiceLogicRef.current && e.target.value.trim()) {
+                          spiceLogicRef.current.setUserName(e.target.value);
+                        }
+                      }}
+                      className="ml-2 p-1 border rounded"
+                    />
+                  </label>
+                </div>
               </div>
               
-              {/* Display search results if any */}
-              {searchResults.length > 0 ? (
-                <>
-                  {searchResults.slice(0, 9).map((spice, idx) => (
-                    <div
-                      key={idx}
-                      className="p-2 hover:bg-blue-50 cursor-pointer flex justify-between items-center"
-                      onClick={() => addSpice(spice)}
-                    >
-                      <span>{spice.name}</span>
-                      <button 
-                        className="px-3 py-1 bg-blue-500 text-white rounded text-xs font-bold min-w-[32px]"
-                        title={`Press ${idx + 1} to add`}
-                      >
-                        {idx + 1}
-                      </button>
-                    </div>
-                  ))}
-                  {searchResults.slice(9).map((spice, idx) => (
-                    <div
-                      key={idx + 9}
-                      className="p-2 hover:bg-blue-50 cursor-pointer flex justify-between items-center"
-                      onClick={() => addSpice(spice)}
-                    >
-                      <span>{spice.name}</span>
-                      <button className="px-2 py-1 bg-blue-500 text-white rounded text-xs">
-                        Add
-                      </button>
-                    </div>
-                  ))}
-                </>
-              ) : (
-                <div className="p-2 text-gray-500 border-t">
-                  No matching spices found in database
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-      
-      {/* Summary of jar counts by letter */}
-      <div className="mb-6 p-4 bg-white rounded shadow">
-        <h3 className="font-medium mb-2">Jar Count by Letter:</h3>
-        <div className="grid grid-cols-6 sm:grid-cols-9 gap-2">
-          {Object.keys(letterCounts).sort().map(letter => (
-            <div key={letter} className="flex flex-col items-center">
-              <div className="flex flex-col items-center">
-                <span className={`font-medium ${letterCounts[letter] > 0 ? 'text-blue-600' : 'text-gray-400'}`}>
-                  {letter}
-                </span>
-                <span className="text-sm">{letterCounts[letter] || 0}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-      
-      {/* Results section showing the calculated optimal distribution */}
-      <div className="mb-6 p-4 bg-white rounded shadow">
-        <h3 className="font-medium mb-2">Optimal Shelf Distribution:</h3>
-        {optimalDistribution.length > 0 ? (
-          <div className="space-y-2">
-            {optimalDistribution.map((shelf, idx) => {
-              const itemCount = shelf.reduce((sum: number, letter: string) => sum + (letterCounts[letter] || 0), 0);
-              return (
-                <div key={idx} className="flex justify-between p-2 bg-blue-50 rounded">
-                  <div>
-                    <span className="font-bold">Shelf {idx + 1}:</span>{" "}
-                    <span className="font-medium">{shelf.join(", ")}</span>
-                  </div>
-                  <span className="text-gray-600">{itemCount} jars</span>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="text-gray-500 italic">
-            Add spices to your inventory to see the optimal distribution
-          </p>
-        )}
-      </div>
-      
-      {/* Visual bar chart of the distribution */}
-      {optimalDistribution.length > 0 && (
-        <div className="mb-6 p-4 bg-white rounded shadow">
-          <h3 className="font-medium mb-2">Distribution Visualization:</h3>
-          <div className="h-12 flex rounded overflow-hidden">
-            {itemsPerShelf.map((shelf, idx) => {
-              // Calculate the percentage width for this shelf
-              const percentage = (shelf.count / totalJars) * 100;
-              return (
-                <div 
-                  key={idx}
-                  className={`h-full ${idx % 2 === 0 ? 'bg-blue-400' : 'bg-blue-500'} flex items-center justify-center`}
-                  style={{ width: `${percentage}%` }}
-                >
-                  <span className="text-white text-xs font-bold px-1">
-                    {shelf.range}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-          <div className="flex justify-between mt-1 text-xs text-gray-500">
-            <span>0%</span>
-            <span>50%</span>
-            <span>100%</span>
-          </div>
-        </div>
-      )}
-      
-      {/* Inventory list showing exact spices added - now at the end */}
-      <div className="p-4 bg-white rounded shadow">
-        <h3 className="font-medium mb-2">Current Inventory ({inventory.length} jars):</h3>
-        {inventory.length > 0 ? (
-          <div className="space-y-1 max-h-60 overflow-y-auto">
-            {inventory.map((item) => (
-              <div 
-                key={item.id} 
-                className="flex justify-between items-center p-2 bg-blue-50 rounded hover:bg-blue-100"
-              >
-                <div className="flex items-center">
-                  <span className="text-sm font-medium w-7 text-center bg-blue-200 rounded-full mr-2">
-                    {item.name.charAt(0).toUpperCase()}
-                  </span>
-                  <span>{item.name}</span>
-                  
-                  {/* Show submission badge if the spice has been submitted */}
-                  {hasBeenSubmitted(item.name) && (
-                    <span className="ml-2 px-2 py-0.5 text-xs rounded bg-yellow-100 text-yellow-800">
-                      {getSubmissionStatus(item.name) === 'pending' ? 'Pending review' : 
-                       getSubmissionStatus(item.name) === 'approved' ? 'Approved' : 'Rejected'}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center">
-                  {/* Only show submit button for custom spices not in the official list */}
-                  {!spices.some(s => s.name === item.name) && !hasBeenSubmitted(item.name) && (
-                    <button
-                      onClick={() => submitCustomSpice(item)}
-                      className="text-green-500 hover:text-green-700 p-1 mr-2 text-xs flex items-center"
-                      title="Submit to spice database"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
-                      </svg>
-                      Submit
-                    </button>
-                  )}
-                  <button
-                    onClick={() => removeSpice(item.id)}
-                    className="text-red-500 hover:text-red-700 p-1"
-                    title="Remove from inventory"
+              <div className="flex items-center gap-2">
+                <span className="font-medium">Total Jars: {totalJars}</span>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={resetInventory}
+                    className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600"
+                    title="Reset inventory but keep in localStorage"
                   >
-                    &times;
+                    Reset
+                  </button>
+                  <button 
+                    onClick={clearSavedData}
+                    className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+                    title="Clear all data including from localStorage"
+                  >
+                    Clear All
                   </button>
                 </div>
               </div>
-            ))}
+            </div>
+            
+            {/* Save status indicator */}
+            <div className="mt-2 flex justify-between items-center text-xs text-gray-600">
+              <div className="flex items-center">
+                <span className={`inline-block w-2 h-2 rounded-full mr-1 ${
+                  saveStatus === 'saved' ? 'bg-green-500' : 
+                  saveStatus === 'saving' ? 'bg-yellow-500' : 'bg-red-500'
+                }`}></span>
+                <span>
+                  {saveStatus === 'saved' ? 'All changes saved' : 
+                   saveStatus === 'saving' ? 'Saving...' : 'Error saving'}
+                </span>
+              </div>
+              {lastSaved && (
+                <span>Last saved: {lastSaved}</span>
+              )}
+            </div>
           </div>
-        ) : (
-          <p className="text-gray-500 italic">
-            Your inventory is empty. Search and add spices above.
-          </p>
-        )}
-      </div>
+          
+          {/* Spice search autocomplete */}
+          <div className="mb-6 p-4 bg-white rounded shadow">
+            <h3 className="font-medium mb-2">Find and add spices:</h3>
+            <div ref={searchRef} className="relative">
+              <div className="flex">
+                <input
+                  type="text"
+                  placeholder="Type to search for spices..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setShowResults(true);
+                  }}
+                  onFocus={() => setShowResults(true)}
+                  onKeyDown={handleKeyDown}
+                  className="p-2 border rounded flex-grow"
+                />
+              </div>
+              
+              {/* Autocomplete results dropdown */}
+              {showResults && searchTerm && (
+                <div className="absolute z-10 w-full mt-1 bg-white border rounded shadow-lg max-h-60 overflow-y-auto">
+                  {/* Option to add a custom spice if search term is not empty */}
+                  <div
+                    className="p-2 bg-green-50 hover:bg-green-100 cursor-pointer flex justify-between items-center border-b"
+                    onClick={() => {
+                      // Create custom spice from the search term using SpiceLogic's method
+                      const customSpice = spiceLogicRef.current?.createCustomSpice(searchTerm) || {
+                        name: SpiceLogic.properlyCapitalizeName(searchTerm),
+                        category: searchTerm.trim().charAt(0).toUpperCase(),
+                      };
+                      addSpice(customSpice);
+                    }}
+                  >
+                    <span className="flex items-center">
+                      <span className="inline-block w-5 h-5 bg-green-500 text-white rounded-full text-center mr-2 flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                        </svg>
+                      </span>
+                      <span>Add "<strong>{SpiceLogic.properlyCapitalizeName(searchTerm.trim())}</strong>"</span>
+                    </span>
+                    <button 
+                      className="px-3 py-1 bg-green-500 text-white rounded text-xs font-bold min-w-[32px]"
+                      title="Press 0 to add custom spice"
+                    >
+                      0
+                    </button>
+                  </div>
+                  
+                  {/* Display search results if any */}
+                  {searchResults.length > 0 ? (
+                    <>
+                      {searchResults.slice(0, 9).map((spice, idx) => (
+                        <div
+                          key={idx}
+                          className="p-2 hover:bg-blue-50 cursor-pointer flex justify-between items-center"
+                          onClick={() => addSpice(spice)}
+                        >
+                          <span>{spice.name}</span>
+                          <button 
+                            className="px-3 py-1 bg-blue-500 text-white rounded text-xs font-bold min-w-[32px]"
+                            title={`Press ${idx + 1} to add`}
+                          >
+                            {idx + 1}
+                          </button>
+                        </div>
+                      ))}
+                      {searchResults.slice(9).map((spice, idx) => (
+                        <div
+                          key={idx + 9}
+                          className="p-2 hover:bg-blue-50 cursor-pointer flex justify-between items-center"
+                          onClick={() => addSpice(spice)}
+                        >
+                          <span>{spice.name}</span>
+                          <button className="px-2 py-1 bg-blue-500 text-white rounded text-xs">
+                            Add
+                          </button>
+                        </div>
+                      ))}
+                    </>
+                  ) : (
+                    <div className="p-2 text-gray-500 border-t">
+                      No matching spices found in database
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Summary of jar counts by letter */}
+          <div className="mb-6 p-4 bg-white rounded shadow">
+            <h3 className="font-medium mb-2">Jar Count by Letter:</h3>
+            <div className="grid grid-cols-6 sm:grid-cols-9 gap-2">
+              {Object.keys(letterCounts).sort().map(letter => (
+                <div key={letter} className="flex flex-col items-center">
+                  <div className="flex flex-col items-center">
+                    <span className={`font-medium ${letterCounts[letter] > 0 ? 'text-blue-600' : 'text-gray-400'}`}>
+                      {letter}
+                    </span>
+                    <span className="text-sm">{letterCounts[letter] || 0}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          {/* Results section showing the calculated optimal distribution */}
+          <div className="mb-6 p-4 bg-white rounded shadow">
+            <h3 className="font-medium mb-2">Optimal Shelf Distribution:</h3>
+            {optimalDistribution.length > 0 ? (
+              <div className="space-y-2">
+                {itemsPerShelf.map((shelf, idx) => {
+                  // Get the effective letter counts that respect the "ignoreDuplicates" setting
+                  const effectiveLetterCounts = spiceLogicRef.current?.getEffectiveLetterCounts() || letterCounts;
+                  
+                  return (
+                    <div key={idx} className="flex justify-between p-2 bg-blue-50 rounded">
+                      <div>
+                        <span className="font-bold">Shelf {idx + 1}:</span>{" "}
+                        <span className="font-medium">{shelf.range}</span>
+                      </div>
+                      <span className="text-gray-600">{shelf.count} jars</span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-gray-500 italic">
+                Add spices to your inventory to see the optimal distribution
+              </p>
+            )}
+          </div>
+          
+          {/* Visual bar chart of the distribution */}
+          {optimalDistribution.length > 0 && (
+            <div className="mb-6 p-4 bg-white rounded shadow">
+              <h3 className="font-medium mb-2">Distribution Visualization:</h3>
+              <div className="h-12 flex rounded overflow-hidden">
+                {itemsPerShelf.map((shelf, idx) => {
+                  // Calculate the percentage width for this shelf based on effective counts
+                  const totalEffectiveJars = itemsPerShelf.reduce((sum, s) => sum + s.count, 0);
+                  const percentage = (shelf.count / totalEffectiveJars) * 100;
+                  
+                  return (
+                    <div 
+                      key={idx}
+                      className={`h-full ${idx % 2 === 0 ? 'bg-blue-400' : 'bg-blue-500'} flex items-center justify-center`}
+                      style={{ width: `${percentage}%` }}
+                    >
+                      <span className="text-white text-xs font-bold px-1">
+                        {shelf.range}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex justify-between mt-1 text-xs text-gray-500">
+                <span>0%</span>
+                <span>50%</span>
+                <span>100%</span>
+              </div>
+            </div>
+          )}
+          
+          {/* Inventory list showing exact spices added */}
+          <div className="p-4 bg-white rounded shadow">
+            <h3 className="font-medium mb-2">Current Inventory ({inventory.length} jars):</h3>
+            {inventory.length > 0 ? (
+              <div className="space-y-1 max-h-60 overflow-y-auto">
+                {inventory.map((item) => (
+                  <div 
+                    key={item.id} 
+                    className="flex justify-between items-center p-2 bg-blue-50 rounded hover:bg-blue-100"
+                  >
+                    <div className="flex items-center">
+                      <span className="text-sm font-medium w-7 text-center bg-blue-200 rounded-full mr-2">
+                        {item.name.charAt(0).toUpperCase()}
+                      </span>
+                      <span>{item.name}</span>
+                      
+                      {/* Show submission badge if the spice has been submitted */}
+                      {hasBeenSubmitted(item.name) && (
+                        <span className="ml-2 px-2 py-0.5 text-xs rounded bg-yellow-100 text-yellow-800">
+                          {getSubmissionStatus(item.name) === 'pending' ? 'Pending review' : 
+                           getSubmissionStatus(item.name) === 'approved' ? 'Approved' : 'Rejected'}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center">
+                      {/* Only show submit button for custom spices not in the official list */}
+                      {!spices.some(s => s.name === item.name) && !hasBeenSubmitted(item.name) && (
+                        <button
+                          onClick={() => submitCustomSpice(item)}
+                          className="text-green-500 hover:text-green-700 p-1 mr-2 text-xs flex items-center"
+                          title="Submit to spice database"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
+                          </svg>
+                          Submit
+                        </button>
+                      )}
+                      <button
+                        onClick={() => removeSpice(item.id)}
+                        className="text-red-500 hover:text-red-700 p-1"
+                        title="Remove from inventory"
+                      >
+                        &times;
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 italic">
+                Your inventory is empty. Search and add spices above.
+              </p>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 };

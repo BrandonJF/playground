@@ -14,7 +14,9 @@ export const API_CONFIG = {
   endpoints: {
     submitSpice: '/spices/submit',
     submissions: '/submissions',
-    spices: '/spices'
+    spices: '/spices',
+    saveInventory: '/inventory/save',
+    loadInventory: '/inventory'
   }
 };
 

@@ -1,0 +1,234 @@
+{
+  "inventory": [
+    {
+      "name": "Masala, Garam",
+      "id": "1745785914827-me08dtq",
+      "addedAt": "4/27/2025, 4:31:54 PM"
+    },
+    {
+      "name": "Garlic",
+      "id": "1745785925630-bhvtt1o",
+      "addedAt": "4/27/2025, 4:32:05 PM"
+    },
+    {
+      "name": "Chipotle",
+      "id": "1745785935747-ukszp30",
+      "addedAt": "4/27/2025, 4:32:15 PM"
+    },
+    {
+      "name": "Cloves",
+      "id": "1745785942377-da98v1i",
+      "addedAt": "4/27/2025, 4:32:22 PM"
+    },
+    {
+      "name": "Masala, Garam",
+      "id": "1745785952678-l066uge",
+      "addedAt": "4/27/2025, 4:32:32 PM"
+    },
+    {
+      "name": "Oregano",
+      "id": "1745785959026-lct69iy",
+      "addedAt": "4/27/2025, 4:32:39 PM"
+    },
+    {
+      "name": "Cayenne Pepper",
+      "id": "1745785964624-ir1kmx4",
+      "addedAt": "4/27/2025, 4:32:44 PM"
+    },
+    {
+      "name": "Cloves",
+      "id": "1745785971435-jcr7dzw",
+      "addedAt": "4/27/2025, 4:32:51 PM"
+    },
+    {
+      "name": "Basil",
+      "id": "1745785976230-jhv81lg",
+      "addedAt": "4/27/2025, 4:32:56 PM"
+    },
+    {
+      "name": "Chili Powder",
+      "id": "1745785985950-z0yj6b7",
+      "addedAt": "4/27/2025, 4:33:05 PM"
+    },
+    {
+      "name": "Cinnamon",
+      "id": "1745785995099-5fq6rlu",
+      "addedAt": "4/27/2025, 4:33:15 PM"
+    },
+    {
+      "name": "Cumin",
+      "id": "1745786001904-7k3wj4r",
+      "addedAt": "4/27/2025, 4:33:21 PM"
+    },
+    {
+      "name": "Paprika",
+      "id": "1745786006680-5yttnys",
+      "addedAt": "4/27/2025, 4:33:26 PM"
+    },
+    {
+      "name": "Cumin",
+      "id": "1745786011406-l1yw1wy",
+      "addedAt": "4/27/2025, 4:33:31 PM"
+    },
+    {
+      "name": "Basil",
+      "id": "1745786016254-ij6xau2",
+      "addedAt": "4/27/2025, 4:33:36 PM"
+    },
+    {
+      "name": "Cardamom",
+      "id": "1745786025693-1zp2tiq",
+      "addedAt": "4/27/2025, 4:33:45 PM"
+    },
+    {
+      "name": "Cajun",
+      "id": "1745786048246-idhp9iu",
+      "addedAt": "4/27/2025, 4:34:08 PM"
+    },
+    {
+      "name": "Curry Powder",
+      "id": "1745786073269-0t0kivo",
+      "addedAt": "4/27/2025, 4:34:33 PM"
+    },
+    {
+      "name": "Ginger",
+      "id": "1745786083696-v6oabdy",
+      "addedAt": "4/27/2025, 4:34:43 PM"
+    },
+    {
+      "name": "Allspice",
+      "id": "1745786091719-cuokf2b",
+      "addedAt": "4/27/2025, 4:34:51 PM"
+    },
+    {
+      "name": "Honey",
+      "id": "1745786097006-t3asbo7",
+      "addedAt": "4/27/2025, 4:34:57 PM"
+    },
+    {
+      "name": "Garlic and Parsley Mix",
+      "id": "1745786113952-qwizra4",
+      "addedAt": "4/27/2025, 4:35:13 PM"
+    },
+    {
+      "name": "Cajun",
+      "id": "1745786119290-wiwmgq7",
+      "addedAt": "4/27/2025, 4:35:19 PM"
+    },
+    {
+      "name": "Tajin",
+      "id": "1745786308108-64uox09",
+      "addedAt": "4/27/2025, 4:38:28 PM"
+    },
+    {
+      "name": "Vanilla Extract",
+      "id": "1745786327606-6fee0pe",
+      "addedAt": "4/27/2025, 4:38:47 PM"
+    },
+    {
+      "name": "Turmeric",
+      "id": "1745786347796-53s72g4",
+      "addedAt": "4/27/2025, 4:39:07 PM"
+    },
+    {
+      "name": "Salt, Sea",
+      "id": "1745786359705-bm50h6q",
+      "addedAt": "4/27/2025, 4:39:19 PM"
+    },
+    {
+      "name": "Star Anise",
+      "id": "1745786365749-6gx5xqd",
+      "addedAt": "4/27/2025, 4:39:25 PM"
+    },
+    {
+      "name": "Sesame Seeds",
+      "id": "1745786371961-gqdhil0",
+      "addedAt": "4/27/2025, 4:39:31 PM"
+    },
+    {
+      "name": "Thyme",
+      "id": "1745786377939-dd97vdx",
+      "addedAt": "4/27/2025, 4:39:37 PM"
+    },
+    {
+      "name": "Black Pepper",
+      "id": "1745786392164-jxmhi0o",
+      "addedAt": "4/27/2025, 4:39:52 PM"
+    },
+    {
+      "name": "Cloves",
+      "id": "1745786402474-nrcf6e4",
+      "addedAt": "4/27/2025, 4:40:02 PM"
+    },
+    {
+      "name": "Seafood Seasoning",
+      "id": "1745786418282-khajnve",
+      "addedAt": "4/27/2025, 4:40:18 PM"
+    },
+    {
+      "name": "Season All",
+      "id": "1745786426023-1yl8f9w",
+      "addedAt": "4/27/2025, 4:40:26 PM"
+    },
+    {
+      "name": "Sazon",
+      "id": "1745786433285-jlp45mq",
+      "addedAt": "4/27/2025, 4:40:33 PM"
+    },
+    {
+      "name": "Chili Bean Sauce",
+      "id": "1745786443383-pcdqoz7",
+      "addedAt": "4/27/2025, 4:40:43 PM"
+    },
+    {
+      "name": "Old Bay",
+      "id": "1745786452702-bymg4yj",
+      "addedAt": "4/27/2025, 4:40:52 PM"
+    },
+    {
+      "name": "Sazon",
+      "id": "1745786469515-i1v9enn",
+      "addedAt": "4/27/2025, 4:41:09 PM"
+    },
+    {
+      "name": "Jerk",
+      "id": "1745786478096-2bbfjhy",
+      "addedAt": "4/27/2025, 4:41:18 PM"
+    },
+    {
+      "name": "Elderberry",
+      "id": "1745786489592-xswz2qa",
+      "addedAt": "4/27/2025, 4:41:29 PM"
+    },
+    {
+      "name": "Scullcap",
+      "id": "1745786498396-pmxmy34",
+      "addedAt": "4/27/2025, 4:41:38 PM"
+    },
+    {
+      "name": "Masala, Tandoori Spice",
+      "id": "1745786511380-pf5zwxj",
+      "addedAt": "4/27/2025, 4:41:51 PM"
+    },
+    {
+      "name": "Habanero Chili Powder",
+      "id": "1745786527060-h8w3o2y",
+      "addedAt": "4/27/2025, 4:42:07 PM"
+    }
+  ],
+  "numShelves": 4,
+  "lastUpdated": "4/27/2025, 6:31:43 PM",
+  "submissions": [
+    {
+      "name": "Chipotle",
+      "status": "approved",
+      "submittedAt": "4/27/2025, 4:34:03 PM"
+    },
+    {
+      "name": "Cajun",
+      "status": "approved",
+      "submittedAt": "4/27/2025, 4:34:19 PM"
+    }
+  ],
+  "userName": "brandon"
+}

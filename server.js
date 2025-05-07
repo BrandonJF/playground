@@ -291,6 +291,86 @@ app.get('/api/submissions', (req, res) => {
   }
 });
 
+// API endpoint to save user inventory data
+app.post('/api/inventory/save', (req, res) => {
+  try {
+    const { userId, data } = req.body;
+    
+    if (!userId || !data) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing required fields' 
+      });
+    }
+    
+    // Create directory if it doesn't exist
+    const inventoryDir = path.join(__dirname, 'inventory');
+    if (!fs.existsSync(inventoryDir)) {
+      fs.mkdirSync(inventoryDir);
+    }
+    
+    // Save inventory data to a file named with the userId
+    const inventoryPath = path.join(inventoryDir, `${userId}.json`);
+    fs.writeFileSync(inventoryPath, JSON.stringify(data, null, 2));
+    
+    console.log(`Saved inventory for user ${userId}`);
+    
+    res.json({ 
+      success: true, 
+      message: 'Inventory saved successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error saving inventory:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to save inventory: ' + error.message
+    });
+  }
+});
+
+// API endpoint to load user inventory data
+app.get('/api/inventory/:userId', (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    if (!userId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing user ID' 
+      });
+    }
+    
+    const inventoryPath = path.join(__dirname, 'inventory', `${userId}.json`);
+    
+    // Check if inventory file exists
+    if (!fs.existsSync(inventoryPath)) {
+      return res.json({ 
+        success: true, 
+        data: null,
+        message: 'No inventory found for this user'
+      });
+    }
+    
+    // Read and return the inventory data
+    const inventoryData = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
+    
+    console.log(`Loaded inventory for user ${userId}`);
+    
+    res.json({ 
+      success: true, 
+      data: inventoryData,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error loading inventory:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to load inventory: ' + error.message
+    });
+  }
+});
+
 // Start the server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

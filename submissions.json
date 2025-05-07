@@ -33,5 +33,110 @@
     "status": "approved",
     "submittedAt": "2025-04-27T18:20:24.206Z",
     "approvedAt": "2025-04-27T18:20:24.206Z"
+  },
+  {
+    "name": "Chipotle",
+    "category": "C",
+    "status": "approved",
+    "submittedAt": "2025-04-27T20:34:03.640Z",
+    "approvedAt": "2025-04-27T20:34:03.640Z"
+  },
+  {
+    "name": "Cajun",
+    "category": "C",
+    "status": "approved",
+    "submittedAt": "2025-04-27T20:34:19.138Z",
+    "approvedAt": "2025-04-27T20:34:19.138Z"
+  },
+  {
+    "name": "Habanero Chili Powder",
+    "category": "H",
+    "status": "approved",
+    "submittedAt": "2025-04-27T20:43:50.047Z",
+    "approvedAt": "2025-04-27T20:43:50.047Z"
+  },
+  {
+    "name": "Vanilla Extract",
+    "category": "V",
+    "status": "approved",
+    "submittedAt": "2025-04-27T20:43:55.608Z",
+    "approvedAt": "2025-04-27T20:43:55.608Z"
+  },
+  {
+    "name": "Chili Powder",
+    "category": "C",
+    "status": "approved",
+    "submittedAt": "2025-04-27T20:44:01.008Z",
+    "approvedAt": "2025-04-27T20:44:01.008Z"
+  },
+  {
+    "name": "Tajin",
+    "category": "T",
+    "status": "approved",
+    "submittedAt": "2025-04-27T20:44:06.783Z",
+    "approvedAt": "2025-04-27T20:44:06.783Z"
+  },
+  {
+    "name": "Garlic and Parsley Mix",
+    "category": "G",
+    "status": "approved",
+    "submittedAt": "2025-04-27T20:44:14.000Z",
+    "approvedAt": "2025-04-27T20:44:14.000Z"
+  },
+  {
+    "name": "Chili Bean Sauce",
+    "category": "C",
+    "status": "approved",
+    "submittedAt": "2025-04-27T20:44:20.316Z",
+    "approvedAt": "2025-04-27T20:44:20.316Z"
+  },
+  {
+    "name": "Black Pepper",
+    "category": "B",
+    "status": "approved",
+    "submittedAt": "2025-04-27T20:44:26.181Z",
+    "approvedAt": "2025-04-27T20:44:26.181Z"
+  },
+  {
+    "name": "Seafood Seasoning",
+    "category": "S",
+    "status": "approved",
+    "submittedAt": "2025-04-27T20:44:32.171Z",
+    "approvedAt": "2025-04-27T20:44:32.171Z"
+  },
+  {
+    "name": "Season All",
+    "category": "S",
+    "status": "approved",
+    "submittedAt": "2025-04-27T20:44:37.672Z",
+    "approvedAt": "2025-04-27T20:44:37.672Z"
+  },
+  {
+    "name": "Jerk",
+    "category": "J",
+    "status": "approved",
+    "submittedAt": "2025-04-27T20:44:42.538Z",
+    "approvedAt": "2025-04-27T20:44:42.539Z"
+  },
+  {
+    "name": "Elderberry",
+    "category": "E",
+    "status": "approved",
+    "submittedAt": "2025-04-27T20:44:46.755Z",
+    "approvedAt": "2025-04-27T20:44:46.755Z"
+  },
+  {
+    "name": "Old Bay",
+    "category": "O",
+    "status": "approved",
+    "submittedAt": "2025-04-27T20:44:52.077Z",
+    "approvedAt": "2025-04-27T20:44:52.077Z"
+  },
+  {
+    "name": "Scullcap",
+    "category": "S",
+    "status": "approved",
+    "submittedAt": "2025-04-27T20:44:57.628Z",
+    "approvedAt": "2025-04-27T20:44:57.628Z"
   }
 ]
